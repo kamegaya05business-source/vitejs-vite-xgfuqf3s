@@ -3,19 +3,17 @@ import { useState, useEffect, useCallback } from "react";
 const SUPABASE_URL = "https://mbgsmjowdxwtwwmwygvu.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1iZ3Ntam93ZHh3dHd3bXd5Z3Z1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzMyMTA0ODAsImV4cCI6MjA4ODc4NjQ4MH0.J8iAYq-tgz7ExPWYeMHE2ar78apsYyMa7j1ob3mFteQ";
 
-const supa = (() => {
-  const h = { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${SUPABASE_ANON_KEY}` };
-  const api = (path, opts: any = {}) => fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers: h, ...opts }).then(r => r.json());
-  return {
-    getRoom: (id) => api(`rooms?id=eq.${id}&select=*`),
-    createRoom: (id, members) => api(`rooms`, { method: "POST", body: JSON.stringify({ id, members }), headers: { ...h, "Prefer": "return=representation" } }),
-    updateMembers: (id, members) => api(`rooms?id=eq.${id}`, { method: "PATCH", body: JSON.stringify({ members }), headers: { ...h, "Prefer": "return=representation" } }),
-    getExpenses: (roomId, month) => api(`expenses?room_id=eq.${roomId}&month=eq.${month}&select=*&order=date.asc`),
-    addExpense: (exp) => api(`expenses`, { method: "POST", body: JSON.stringify(exp), headers: { ...h, "Prefer": "return=representation" } }),
-    updateExpense: (id, exp) => api(`expenses?id=eq.${id}`, { method: "PATCH", body: JSON.stringify(exp), headers: { ...h, "Prefer": "return=representation" } }),
-    deleteExpense: (id) => api(`expenses?id=eq.${id}`, { method: "DELETE" }),
-  };
-})();
+const h = { "Content-Type": "application/json", "apikey": SUPABASE_ANON_KEY, "Authorization": `Bearer ${SUPABASE_ANON_KEY}` };
+const api = (path, opts = {}) => fetch(`${SUPABASE_URL}/rest/v1/${path}`, { headers: h, ...opts }).then(r => r.json());
+const supa = {
+  getRoom: (id) => api(`rooms?id=eq.${id}&select=*`),
+  createRoom: (id, members) => api(`rooms`, { method: "POST", body: JSON.stringify({ id, members }), headers: { ...h, "Prefer": "return=representation" } }),
+  updateMembers: (id, members) => api(`rooms?id=eq.${id}`, { method: "PATCH", body: JSON.stringify({ members }), headers: { ...h, "Prefer": "return=representation" } }),
+  getExpenses: (roomId, month) => api(`expenses?room_id=eq.${roomId}&month=eq.${month}&select=*&order=date.asc`),
+  addExpense: (exp) => api(`expenses`, { method: "POST", body: JSON.stringify(exp), headers: { ...h, "Prefer": "return=representation" } }),
+  updateExpense: (id, exp) => api(`expenses?id=eq.${id}`, { method: "PATCH", body: JSON.stringify(exp), headers: { ...h, "Prefer": "return=representation" } }),
+  deleteExpense: (id) => api(`expenses?id=eq.${id}`, { method: "DELETE" }),
+};
 
 const CATEGORIES = [
   { id: "rent",          label: "家賃",   icon: "🏠" },
@@ -30,15 +28,34 @@ const CATEGORIES = [
 ];
 
 const SPLIT_PRESETS = ["50:50", "60:40", "70:30", "自由入力"];
-// 按分ラベル生成（名前付き）
+
 function splitLabel(preset, members) {
   if (preset === "自由入力") return "自由入力";
-  const [a, b] = preset.split(":").map(Number);
+  const parts = preset.split(":");
+  const a = parts[0], b = parts[1];
   const m0 = members[0] || "A";
   const m1 = members[1] || "B";
-  return `${m0} ${a} : ${b} ${m1}`;
+  return m0 + " " + a + " : " + b + " " + m1;
 }
-const ROOM_ID = "SHARED"; // 固定ルームID
+
+const ROOM_ID = "SHARED";
+
+const iStyle = { width: "100%", border: "1.5px solid #eee", borderRadius: 12, padding: "11px 14px", fontSize: 15, outline: "none", marginBottom: 16, boxSizing: "border-box", background: "#fafafa", color: "#333" };
+const bStyle = { width: "100%", border: "none", borderRadius: 14, padding: "14px", fontSize: 15, fontWeight: 600, cursor: "pointer", boxSizing: "border-box" };
+
+function Label({ children }) {
+  return <div style={{ fontSize: 13, fontWeight: 600, color: "#888", marginBottom: 6 }}>{children}</div>;
+}
+
+function parseSplit(split, memberCount) {
+  if (!split || memberCount < 2) return [0.5, 0.5];
+  const parts = split.split(":").map(Number);
+  if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
+    const t = parts[0] + parts[1];
+    return [parts[0] / t, parts[1] / t];
+  }
+  return [0.5, 0.5];
+}
 
 // ---- Entry Page ----
 function EntryPage({ onJoin }) {
@@ -69,18 +86,12 @@ function EntryPage({ onJoin }) {
     <div style={{ minHeight: "100vh", background: "linear-gradient(135deg,#f0f4ff 0%,#fce4ec 100%)", display: "flex", alignItems: "center", justifyContent: "center", fontFamily: "'Segoe UI',sans-serif" }}>
       <div style={{ background: "#fff", borderRadius: 24, padding: "40px 36px", width: 360, boxShadow: "0 8px 32px rgba(0,0,0,0.10)" }}>
         <div style={{ textAlign: "center", marginBottom: 32 }}>
-          <div style={{ fontSize: 48 }}>🏠</div>
-          <h1 style={{ margin: "8px 0 0", fontSize: 24, color: "#333", fontWeight: 700 }}>精算Tool</h1>
+          <div style={{ fontSize: 48, lineHeight: 1, marginBottom: 8 }}>🏠</div>
+          <h1 style={{ margin: 0, fontSize: 24, color: "#333", fontWeight: 700 }}>精算Tool</h1>
         </div>
         {err && <div style={{ background: "#fff0f0", color: "#e53935", borderRadius: 8, padding: "8px 12px", marginBottom: 16, fontSize: 13 }}>{err}</div>}
-        <input
-          placeholder="お名前を入力"
-          value={name}
-          onChange={e => { setName(e.target.value); setErr(""); }}
-          onKeyDown={e => e.key === "Enter" && handleEnter()}
-          style={inputStyle}
-        />
-        <button onClick={handleEnter} disabled={loading} style={{ ...btnStyle, background: "linear-gradient(135deg,#667eea,#764ba2)", color: "#fff", opacity: loading ? 0.6 : 1 }}>
+        <input placeholder="お名前を入力" value={name} onChange={e => { setName(e.target.value); setErr(""); }} onKeyDown={e => e.key === "Enter" && handleEnter()} style={iStyle} />
+        <button onClick={handleEnter} disabled={loading} style={{ ...bStyle, background: "linear-gradient(135deg,#667eea,#764ba2)", color: "#fff", opacity: loading ? 0.6 : 1 }}>
           {loading ? "入室中…" : "→ 入室する"}
         </button>
       </div>
@@ -92,18 +103,18 @@ function EntryPage({ onJoin }) {
 function App() {
   const [page, setPage] = useState("entry");
   const [myName, setMyName] = useState("");
-  const [members, setMembers] = useState<string[]>([]);
-  const [expenses, setExpenses] = useState<any[]>([]);
+  const [members, setMembers] = useState([]);
+  const [expenses, setExpenses] = useState([]);
+  const [newMember, setNewMember] = useState("");
   const now = new Date();
-  const [selectedMonth, setSelectedMonth] = useState(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`);
+  const [selectedMonth, setSelectedMonth] = useState(now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0"));
   const [isEvent, setIsEvent] = useState(false);
   const [eventName, setEventName] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
-  const [editId, setEditId] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [editId, setEditId] = useState(null);
 
-  const periodKey = isEvent ? `event:${eventName}` : selectedMonth;
+  const periodKey = isEvent ? "event:" + eventName : selectedMonth;
 
   const fetchExpenses = useCallback(async () => {
     const rows = await supa.getExpenses(ROOM_ID, periodKey);
@@ -121,11 +132,26 @@ function App() {
     setMyName(name); setMembers(room.members); setPage("main");
   };
 
+  const addMember = () => {
+    const n = newMember.trim();
+    if (!n || members.includes(n)) return;
+    const updated = [...members, n];
+    setMembers(updated);
+    supa.updateMembers(ROOM_ID, updated);
+    setNewMember("");
+  };
+
+  const removeMember = (m) => {
+    if (m === myName) return;
+    const updated = members.filter(x => x !== m);
+    setMembers(updated);
+    supa.updateMembers(ROOM_ID, updated);
+  };
+
   if (page === "entry") return <EntryPage onJoin={handleJoin} />;
 
   return (
     <div style={{ minHeight: "100vh", background: "#f7f8fc", fontFamily: "'Segoe UI',sans-serif" }}>
-      {/* Header */}
       <div style={{ background: "#fff", borderBottom: "1px solid #eee", padding: "14px 20px", display: "flex", alignItems: "center", justifyContent: "space-between", position: "sticky", top: 0, zIndex: 10 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 20 }}>🏠</span>
@@ -138,7 +164,6 @@ function App() {
 
         {/* Period selector */}
         <div style={{ background: "#fff", borderRadius: 16, padding: "14px 16px", marginBottom: 16, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
-          {/* Mode toggle */}
           <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
             <button onClick={() => setIsEvent(false)} style={{ flex: 1, border: "none", borderRadius: 10, padding: "7px", cursor: "pointer", fontWeight: 600, fontSize: 13, background: !isEvent ? "linear-gradient(135deg,#667eea,#764ba2)" : "#f5f5f5", color: !isEvent ? "#fff" : "#555" }}>
               📅 月次
@@ -147,7 +172,6 @@ function App() {
               🎉 イベント
             </button>
           </div>
-
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {!isEvent ? (
               <input type="month" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}
@@ -164,17 +188,23 @@ function App() {
         </div>
 
         {/* Members */}
-        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" as const }}>
-          {members.map(m => (
-            <div key={m} style={{ background: "#fff", borderRadius: 20, padding: "5px 14px", fontSize: 13, color: "#555", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", display: "flex", alignItems: "center", gap: 6 }}>
-              <span>👤</span>{m}
-              <button onClick={() => {
-                const updated = members.filter(x => x !== m);
-                setMembers(updated);
-                supa.updateMembers(ROOM_ID, updated);
-              }} style={{ background: "none", border: "none", cursor: "pointer", color: "#ccc", fontSize: 14, padding: 0, lineHeight: 1 }}>✕</button>
-            </div>
-          ))}
+        <div style={{ background: "#fff", borderRadius: 16, padding: "12px 16px", marginBottom: 16, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: "#888", marginBottom: 10 }}>メンバー</div>
+          <div style={{ display: "flex", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+            {members.map(m => (
+              <div key={m} style={{ background: m === myName ? "#f0f4ff" : "#f5f5f5", borderRadius: 20, padding: "5px 10px 5px 14px", fontSize: 13, color: "#555", display: "flex", alignItems: "center", gap: 4 }}>
+                <span>👤</span>{m}
+                {m !== myName && (
+                  <button onClick={() => removeMember(m)} style={{ background: "none", border: "none", cursor: "pointer", color: "#bbb", fontSize: 13, padding: "0 0 0 2px", lineHeight: 1 }}>✕</button>
+                )}
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", gap: 8 }}>
+            <input placeholder="名前を追加" value={newMember} onChange={e => setNewMember(e.target.value)} onKeyDown={e => e.key === "Enter" && addMember()}
+              style={{ flex: 1, border: "1.5px solid #eee", borderRadius: 10, padding: "8px 12px", fontSize: 14, outline: "none", background: "#fafafa" }} />
+            <button onClick={addMember} style={{ background: "linear-gradient(135deg,#667eea,#764ba2)", color: "#fff", border: "none", borderRadius: 10, padding: "8px 14px", cursor: "pointer", fontWeight: 600, fontSize: 13 }}>追加</button>
+          </div>
         </div>
 
         {/* Expense list */}
@@ -203,7 +233,6 @@ function App() {
         )}
       </div>
 
-      {/* FAB */}
       <button onClick={() => { setEditId(null); setShowForm(true); }}
         style={{ position: "fixed", bottom: 28, right: 24, width: 56, height: 56, borderRadius: "50%", background: "linear-gradient(135deg,#667eea,#764ba2)", color: "#fff", fontSize: 28, border: "none", cursor: "pointer", boxShadow: "0 4px 16px rgba(102,126,234,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 20 }}>
         +
@@ -243,12 +272,12 @@ function App() {
 // ---- Expense Form ----
 function ExpenseForm({ members, myName, periodKey, isEvent, editData, onSave, onDelete, onClose }) {
   const today = new Date();
-  const defaultDate = isEvent ? today.toISOString().slice(0, 10) : `${periodKey}-${String(today.getDate()).padStart(2, "0")}`;
-  const [date, setDate] = useState(editData?.date || defaultDate);
-  const [amount, setAmount] = useState(editData?.amount || "");
-  const [category, setCategory] = useState(editData?.category || "rent");
-  const [store, setStore] = useState(editData?.store || "");
-  const [paidBy, setPaidBy] = useState(editData?.paid_by || myName);
+  const defaultDate = isEvent ? today.toISOString().slice(0, 10) : periodKey + "-" + String(today.getDate()).padStart(2, "0");
+  const [date, setDate] = useState(editData ? editData.date : defaultDate);
+  const [amount, setAmount] = useState(editData ? editData.amount : "");
+  const [category, setCategory] = useState(editData ? editData.category : "rent");
+  const [store, setStore] = useState(editData ? editData.store : "");
+  const [paidBy, setPaidBy] = useState(editData ? editData.paid_by : myName);
   const [splitMode, setSplitMode] = useState(() => {
     if (!editData) return "50:50";
     return ["50:50", "60:40", "70:30"].includes(editData.split) ? editData.split : "自由入力";
@@ -261,22 +290,22 @@ function ExpenseForm({ members, myName, periodKey, isEvent, editData, onSave, on
   const handleSave = () => {
     if (!date || !amount || !store) return;
     const splitVal = splitMode === "自由入力" ? customSplit : splitMode;
-    onSave({ id: editData?.id || Date.now().toString(), month: periodKey, date, amount: Number(amount), category, store, paid_by: paidBy, split: splitVal });
+    onSave({ id: editData ? editData.id : String(Date.now()), month: periodKey, date, amount: Number(amount), category, store, paid_by: paidBy, split: splitVal });
   };
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 30, display: "flex", alignItems: "flex-end", justifyContent: "center" }}>
-      <div style={{ background: "#fff", borderRadius: "24px 24px 0 0", width: "100%", maxWidth: 520, padding: "24px 20px 32px", maxHeight: "90vh", overflowY: "auto" as const }}>
+      <div style={{ background: "#fff", borderRadius: "24px 24px 0 0", width: "100%", maxWidth: 520, padding: "24px 20px 32px", maxHeight: "90vh", overflowY: "auto" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
           <h2 style={{ margin: 0, fontSize: 18, color: "#333" }}>{editData ? "支出を編集" : "支出を追加"}</h2>
           <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#bbb" }}>✕</button>
         </div>
         <Label>日付</Label>
-        <input type="date" value={date} onChange={e => setDate(e.target.value)} style={inputStyle} />
+        <input type="date" value={date} onChange={e => setDate(e.target.value)} style={iStyle} />
         <Label>金額</Label>
         <div style={{ position: "relative" }}>
           <span style={{ position: "absolute", left: 14, top: "50%", transform: "translateY(-50%)", color: "#999" }}>¥</span>
-          <input type="number" placeholder="0" value={amount} onChange={e => setAmount(e.target.value)} style={{ ...inputStyle, paddingLeft: 28 }} />
+          <input type="number" placeholder="0" value={amount} onChange={e => setAmount(e.target.value)} style={{ ...iStyle, paddingLeft: 28 }} />
         </div>
         <Label>カテゴリ</Label>
         <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8, marginBottom: 16 }}>
@@ -292,9 +321,9 @@ function ExpenseForm({ members, myName, periodKey, isEvent, editData, onSave, on
           ))}
         </div>
         <Label>支出先</Label>
-        <input placeholder="例：イオン、Netflix" value={store} onChange={e => setStore(e.target.value)} style={inputStyle} />
+        <input placeholder="例：イオン、Netflix" value={store} onChange={e => setStore(e.target.value)} style={iStyle} />
         <Label>支払った人</Label>
-        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" as const }}>
+        <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" }}>
           {members.map(m => (
             <button key={m} onClick={() => setPaidBy(m)} style={{
               background: paidBy === m ? "linear-gradient(135deg,#43cea2,#185a9d)" : "#f5f5f5",
@@ -307,16 +336,21 @@ function ExpenseForm({ members, myName, periodKey, isEvent, editData, onSave, on
           {SPLIT_PRESETS.map(p => (
             <button key={p} onClick={() => setSplitMode(p)} style={{
               background: splitMode === p ? "linear-gradient(135deg,#f093fb,#f5576c)" : "#f5f5f5",
-              color: splitMode === p ? "#fff" : "#555", border: "none", borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600, fontSize: 13, textAlign: "left" as const
+              color: splitMode === p ? "#fff" : "#555", border: "none", borderRadius: 12, padding: "10px 14px",
+              cursor: "pointer", fontWeight: 600, fontSize: 13, textAlign: "left"
             }}>{splitLabel(p, members)}</button>
           ))}
         </div>
-        {splitMode === "自由入力" && <input placeholder="例：80:20" value={customSplit} onChange={e => setCustomSplit(e.target.value)} style={inputStyle} />}
+        {splitMode === "自由入力" && (
+          <input placeholder={"例：" + (members[0] || "A") + "が60なら 60:40"} value={customSplit} onChange={e => setCustomSplit(e.target.value)} style={iStyle} />
+        )}
         <button onClick={handleSave} disabled={!date || !amount || !store}
-          style={{ ...btnStyle, background: "linear-gradient(135deg,#667eea,#764ba2)", color: "#fff", marginTop: 8, opacity: (!date || !amount || !store) ? 0.5 : 1 }}>
+          style={{ ...bStyle, background: "linear-gradient(135deg,#667eea,#764ba2)", color: "#fff", marginTop: 8, opacity: (!date || !amount || !store) ? 0.5 : 1 }}>
           {editData ? "更新する" : "追加する"}
         </button>
-        {onDelete && <button onClick={onDelete} style={{ ...btnStyle, background: "#fff0f0", color: "#e53935", marginTop: 8 }}>削除する</button>}
+        {onDelete && (
+          <button onClick={onDelete} style={{ ...bStyle, background: "#fff0f0", color: "#e53935", marginTop: 8 }}>削除する</button>
+        )}
       </div>
     </div>
   );
@@ -324,7 +358,7 @@ function ExpenseForm({ members, myName, periodKey, isEvent, editData, onSave, on
 
 // ---- Summary Modal ----
 function SummaryModal({ expenses, members, period, onClose }) {
-  const totals: Record<string, { paid: number; owed: number }> = {};
+  const totals = {};
   members.forEach(m => { totals[m] = { paid: 0, owed: 0 }; });
   expenses.forEach(exp => {
     const [r1, r2] = parseSplit(exp.split, members.length);
@@ -332,7 +366,7 @@ function SummaryModal({ expenses, members, period, onClose }) {
     if (totals[exp.paid_by] !== undefined) totals[exp.paid_by].paid += exp.amount;
   });
   const balances = members.map(m => ({ name: m, bal: totals[m].paid - totals[m].owed }));
-  const settlements: any[] = [];
+  const settlements = [];
   const p2 = balances.filter(b => b.bal > 0.5).sort((a, b) => b.bal - a.bal).map(x => ({ ...x }));
   const n2 = balances.filter(b => b.bal < -0.5).sort((a, b) => a.bal - b.bal).map(x => ({ ...x }));
   let pi = 0, ni = 0;
@@ -347,7 +381,7 @@ function SummaryModal({ expenses, members, period, onClose }) {
 
   return (
     <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", zIndex: 30, display: "flex", alignItems: "center", justifyContent: "center", padding: 16 }}>
-      <div style={{ background: "#fff", borderRadius: 24, width: "100%", maxWidth: 480, padding: "28px 24px", maxHeight: "85vh", overflowY: "auto" as const }}>
+      <div style={{ background: "#fff", borderRadius: 24, width: "100%", maxWidth: 480, padding: "28px 24px", maxHeight: "85vh", overflowY: "auto" }}>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
           <h2 style={{ margin: 0, fontSize: 18, color: "#333" }}>💰 {period} 精算結果</h2>
           <button onClick={onClose} style={{ background: "none", border: "none", fontSize: 22, cursor: "pointer", color: "#bbb" }}>✕</button>
@@ -359,7 +393,7 @@ function SummaryModal({ expenses, members, period, onClose }) {
           {members.map(m => (
             <div key={m} style={{ display: "flex", justifyContent: "space-between", color: "#555", fontSize: 14, marginTop: 4 }}>
               <span>👤 {m}</span>
-              <span>支払 ¥{(totals[m]?.paid || 0).toLocaleString()} / 負担 ¥{Math.round(totals[m]?.owed || 0).toLocaleString()}</span>
+              <span>支払 ¥{(totals[m] ? totals[m].paid : 0).toLocaleString()} / 負担 ¥{Math.round(totals[m] ? totals[m].owed : 0).toLocaleString()}</span>
             </div>
           ))}
         </div>
@@ -385,7 +419,7 @@ function SummaryModal({ expenses, members, period, onClose }) {
               <span style={{ color: "#555", fontSize: 14, flex: 1 }}>{c.label}</span>
               <span style={{ fontWeight: 600, color: "#333" }}>¥{s.toLocaleString()}</span>
               <div style={{ width: 80, background: "#eee", borderRadius: 4, height: 6 }}>
-                <div style={{ width: `${Math.round(s / total * 100)}%`, background: "linear-gradient(135deg,#667eea,#764ba2)", height: 6, borderRadius: 4 }} />
+                <div style={{ width: Math.round(s / total * 100) + "%", background: "linear-gradient(135deg,#667eea,#764ba2)", height: 6, borderRadius: 4 }} />
               </div>
             </div>
           );
@@ -394,21 +428,5 @@ function SummaryModal({ expenses, members, period, onClose }) {
     </div>
   );
 }
-
-function parseSplit(split, memberCount) {
-  if (!split || memberCount < 2) return [0.5, 0.5];
-  const parts = split.split(":").map(Number);
-  if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-    const t = parts[0] + parts[1]; return [parts[0] / t, parts[1] / t];
-  }
-  return [0.5, 0.5];
-}
-
-function Label({ children }) {
-  return <div style={{ fontSize: 13, fontWeight: 600, color: "#888", marginBottom: 6 }}>{children}</div>;
-}
-
-const inputStyle: React.CSSProperties = { width: "100%", border: "1.5px solid #eee", borderRadius: 12, padding: "11px 14px", fontSize: 15, outline: "none", marginBottom: 16, boxSizing: "border-box", background: "#fafafa", color: "#333" };
-const btnStyle: React.CSSProperties = { width: "100%", border: "none", borderRadius: 14, padding: "14px", fontSize: 15, fontWeight: 600, cursor: "pointer", boxSizing: "border-box" };
 
 export default App;
