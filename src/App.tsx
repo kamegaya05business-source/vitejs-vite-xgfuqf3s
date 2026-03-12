@@ -211,7 +211,7 @@ function App() {
   );
 }
 
-function ExpenseForm({ members, myName, selectedMonth, editData, onSave, onDelete, onClose }) {
+function ExpenseForm({ members, myName, selectedMonth, roomId, editData, onSave, onDelete, onClose }) {
   const today = new Date();
   const defaultDate = `${selectedMonth}-${String(today.getDate()).padStart(2, "0")}`;
   const [date, setDate] = useState(editData?.date || defaultDate);
@@ -379,7 +379,7 @@ function Label({ children }) {
   return <div style={{ fontSize: 13, fontWeight: 600, color: "#888", marginBottom: 6 }}>{children}</div>;
 }
 
-const inputStyle = { width: "100%", border: "1.5px solid #eee", borderRadius: 12, padding: "11px 14px", fontSize: 15, outline: "none", marginBottom: 16, boxSizing: "border-box", background: "#fafafa", color: "#333" };
-const btnStyle = { width: "100%", border: "none", borderRadius: 14, padding: "14px", fontSize: 15, fontWeight: 600, cursor: "pointer", boxSizing: "border-box" };
+const inputStyle: React.CSSProperties = { width: "100%", border: "1.5px solid #eee", borderRadius: 12, padding: "11px 14px", fontSize: 15, outline: "none", marginBottom: 16, boxSizing: "border-box", background: "#fafafa", color: "#333" };
+const btnStyle: React.CSSProperties = { width: "100%", border: "none", borderRadius: 14, padding: "14px", fontSize: 15, fontWeight: 600, cursor: "pointer", boxSizing: "border-box" };
 
 export default App;
