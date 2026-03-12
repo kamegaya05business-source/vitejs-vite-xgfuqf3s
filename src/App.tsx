@@ -30,6 +30,14 @@ const CATEGORIES = [
 ];
 
 const SPLIT_PRESETS = ["50:50", "60:40", "70:30", "自由入力"];
+// 按分ラベル生成（名前付き）
+function splitLabel(preset, members) {
+  if (preset === "自由入力") return "自由入力";
+  const [a, b] = preset.split(":").map(Number);
+  const m0 = members[0] || "A";
+  const m1 = members[1] || "B";
+  return `${m0} ${a} : ${b} ${m1}`;
+}
 const ROOM_ID = "SHARED"; // 固定ルームID
 
 // ---- Entry Page ----
@@ -158,8 +166,13 @@ function App() {
         {/* Members */}
         <div style={{ display: "flex", gap: 8, marginBottom: 16, flexWrap: "wrap" as const }}>
           {members.map(m => (
-            <div key={m} style={{ background: "#fff", borderRadius: 20, padding: "5px 14px", fontSize: 13, color: "#555", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", display: "flex", alignItems: "center", gap: 5 }}>
+            <div key={m} style={{ background: "#fff", borderRadius: 20, padding: "5px 14px", fontSize: 13, color: "#555", boxShadow: "0 1px 4px rgba(0,0,0,0.08)", display: "flex", alignItems: "center", gap: 6 }}>
               <span>👤</span>{m}
+              <button onClick={() => {
+                const updated = members.filter(x => x !== m);
+                setMembers(updated);
+                supa.updateMembers(ROOM_ID, updated);
+              }} style={{ background: "none", border: "none", cursor: "pointer", color: "#ccc", fontSize: 14, padding: 0, lineHeight: 1 }}>✕</button>
             </div>
           ))}
         </div>
@@ -271,9 +284,10 @@ function ExpenseForm({ members, myName, periodKey, isEvent, editData, onSave, on
             <button key={c.id} onClick={() => setCategory(c.id)} style={{
               background: category === c.id ? "linear-gradient(135deg,#667eea,#764ba2)" : "#f5f5f5",
               color: category === c.id ? "#fff" : "#555", border: "none", borderRadius: 12, padding: "10px 4px",
-              cursor: "pointer", fontSize: 13, fontWeight: 600, display: "flex", flexDirection: "column", alignItems: "center", gap: 3
+              cursor: "pointer", fontSize: 12, fontWeight: 600, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, lineHeight: 1.3
             }}>
-              <span style={{ fontSize: 20 }}>{c.icon}</span>{c.label}
+              <span style={{ fontSize: 22, lineHeight: 1 }}>{c.icon}</span>
+              <span>{c.label}</span>
             </button>
           ))}
         </div>
@@ -289,12 +303,12 @@ function ExpenseForm({ members, myName, periodKey, isEvent, editData, onSave, on
           ))}
         </div>
         <Label>按分</Label>
-        <div style={{ display: "flex", gap: 8, marginBottom: 8, flexWrap: "wrap" as const }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 8 }}>
           {SPLIT_PRESETS.map(p => (
             <button key={p} onClick={() => setSplitMode(p)} style={{
               background: splitMode === p ? "linear-gradient(135deg,#f093fb,#f5576c)" : "#f5f5f5",
-              color: splitMode === p ? "#fff" : "#555", border: "none", borderRadius: 20, padding: "7px 14px", cursor: "pointer", fontWeight: 600, fontSize: 13
-            }}>{p}</button>
+              color: splitMode === p ? "#fff" : "#555", border: "none", borderRadius: 12, padding: "10px 14px", cursor: "pointer", fontWeight: 600, fontSize: 13, textAlign: "left" as const
+            }}>{splitLabel(p, members)}</button>
           ))}
         </div>
         {splitMode === "自由入力" && <input placeholder="例：80:20" value={customSplit} onChange={e => setCustomSplit(e.target.value)} style={inputStyle} />}
