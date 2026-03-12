@@ -30,34 +30,115 @@ const CATEGORIES = [
   { id: "other",        label: "その他", icon: "📦" },
 ];
 
-const SPLIT_PRESETS = ["50:50", "60:40", "70:30", "自由入力"];
-
-function splitLabel(preset, members) {
-  if (preset === "自由入力") return "自由入力";
-  const parts = preset.split(":");
-  const a = parts[0], b = parts[1];
-  const m0 = members[0] || "A";
-  const m1 = members[1] || "B";
-  return m0 + " " + a + " : " + b + " " + m1;
-}
-
 const ROOM_ID = "SHARED";
 
-const iStyle = { width: "100%", border: "1.5px solid #eee", borderRadius: 12, padding: "11px 14px", fontSize: 15, outline: "none", marginBottom: 16, boxSizing: "border-box", background: "#fafafa", color: "#333" };
-const bStyle = { width: "100%", border: "none", borderRadius: 14, padding: "14px", fontSize: 15, fontWeight: 600, cursor: "pointer", boxSizing: "border-box" };
+const iStyle: React.CSSProperties = { width: "100%", border: "1.5px solid #eee", borderRadius: 12, padding: "11px 14px", fontSize: 15, outline: "none", marginBottom: 16, boxSizing: "border-box", background: "#fafafa", color: "#333" };
+const bStyle: React.CSSProperties = { width: "100%", border: "none", borderRadius: 14, padding: "14px", fontSize: 15, fontWeight: 600, cursor: "pointer", boxSizing: "border-box" };
 
 function Label({ children }) {
   return <div style={{ fontSize: 13, fontWeight: 600, color: "#888", marginBottom: 6 }}>{children}</div>;
 }
 
-function parseSplit(split, memberCount) {
-  if (!split || memberCount < 2) return [0.5, 0.5];
-  const parts = split.split(":").map(Number);
-  if (parts.length >= 2 && !isNaN(parts[0]) && !isNaN(parts[1])) {
-    const t = parts[0] + parts[1];
-    return [parts[0] / t, parts[1] / t];
+// 按分文字列をパース → { name: ratio } のオブジェクトに
+function parseSplitStr(splitStr, members) {
+  try {
+    const obj = JSON.parse(splitStr);
+    if (typeof obj === "object") return obj;
+  } catch {}
+  // 均等
+  const eq = 1 / members.length;
+  return Object.fromEntries(members.map(m => [m, eq]));
+}
+
+// 精算計算
+function calcSettlements(expenses, members) {
+  const totals = {};
+  members.forEach(m => { totals[m] = { paid: 0, owed: 0 }; });
+  expenses.forEach(exp => {
+    const ratios = parseSplitStr(exp.split, members);
+    members.forEach(m => { if (totals[m]) totals[m].owed += exp.amount * (ratios[m] || 0); });
+    if (totals[exp.paid_by] !== undefined) totals[exp.paid_by].paid += exp.amount;
+  });
+  const balances = members.map(m => ({ name: m, bal: totals[m].paid - totals[m].owed }));
+  const settlements = [];
+  const p2 = balances.filter(b => b.bal > 0.5).sort((a, b) => b.bal - a.bal).map(x => ({ ...x }));
+  const n2 = balances.filter(b => b.bal < -0.5).sort((a, b) => a.bal - b.bal).map(x => ({ ...x }));
+  let pi = 0, ni = 0;
+  while (pi < p2.length && ni < n2.length) {
+    const amt = Math.min(p2[pi].bal, -n2[ni].bal);
+    settlements.push({ from: n2[ni].name, to: p2[pi].name, amount: Math.round(amt) });
+    p2[pi].bal -= amt; n2[ni].bal += amt;
+    if (Math.abs(p2[pi].bal) < 0.5) pi++;
+    if (Math.abs(n2[ni].bal) < 0.5) ni++;
   }
-  return [0.5, 0.5];
+  return { totals, settlements };
+}
+
+// ---- Split Selector ----
+function SplitSelector({ members, value, onChange }) {
+  const isEqual = value === "equal";
+  const ratios = isEqual
+    ? Object.fromEntries(members.map(m => [m, Math.round(100 / members.length)]))
+    : (() => { try { const o = JSON.parse(value); return o; } catch { return Object.fromEntries(members.map(m => [m, Math.round(100 / members.length)])); } })();
+
+  const updateSlider = (name, newVal) => {
+    const others = members.filter(m => m !== name);
+    const remaining = 100 - newVal;
+    const newRatios = { ...ratios, [name]: newVal };
+    const sumOthers = others.reduce((s, m) => s + (ratios[m] || 0), 0);
+    others.forEach(m => {
+      newRatios[m] = sumOthers > 0 ? Math.round((ratios[m] / sumOthers) * remaining) : Math.round(remaining / others.length);
+    });
+    // 端数補正
+    const total = Object.values(newRatios).reduce((s: number, v: any) => s + v, 0);
+    if (total !== 100) newRatios[others[others.length - 1]] += 100 - total;
+    onChange(JSON.stringify(newRatios));
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
+        <button onClick={() => onChange("equal")} style={{ flex: 1, border: "none", borderRadius: 10, padding: "9px", cursor: "pointer", fontWeight: 600, fontSize: 13, background: isEqual ? "linear-gradient(135deg,#667eea,#764ba2)" : "#f5f5f5", color: isEqual ? "#fff" : "#555" }}>
+          均等割り
+        </button>
+        <button onClick={() => onChange(JSON.stringify(ratios))} style={{ flex: 1, border: "none", borderRadius: 10, padding: "9px", cursor: "pointer", fontWeight: 600, fontSize: 13, background: !isEqual ? "linear-gradient(135deg,#f093fb,#f5576c)" : "#f5f5f5", color: !isEqual ? "#fff" : "#555" }}>
+          カスタム
+        </button>
+      </div>
+
+      {!isEqual && (
+        <div style={{ background: "#f7f8fc", borderRadius: 12, padding: "12px 14px" }}>
+          {members.map(m => (
+            <div key={m} style={{ marginBottom: 12 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", fontSize: 13, fontWeight: 600, color: "#555", marginBottom: 4 }}>
+                <span>👤 {m}</span>
+                <span style={{ color: "#667eea" }}>{ratios[m] || 0}%</span>
+              </div>
+              <input
+                type="range" min={0} max={100} value={ratios[m] || 0}
+                onChange={e => updateSlider(m, Number(e.target.value))}
+                style={{ width: "100%", accentColor: "#667eea" }}
+              />
+            </div>
+          ))}
+          <div style={{ textAlign: "right", fontSize: 12, color: Object.values(ratios).reduce((s: number, v: any) => s + v, 0) === 100 ? "#43cea2" : "#e53935", fontWeight: 600 }}>
+            合計: {Object.values(ratios).reduce((s: number, v: any) => s + v, 0)}%
+            {Object.values(ratios).reduce((s: number, v: any) => s + v, 0) === 100 ? " ✅" : " ⚠️ 100%にしてください"}
+          </div>
+        </div>
+      )}
+
+      {isEqual && (
+        <div style={{ background: "#f7f8fc", borderRadius: 12, padding: "10px 14px", display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {members.map(m => (
+            <div key={m} style={{ fontSize: 13, color: "#555" }}>
+              👤 {m} <span style={{ color: "#667eea", fontWeight: 600 }}>{Math.round(100 / members.length)}%</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 }
 
 // ---- Entry Page ----
@@ -109,33 +190,12 @@ function App() {
   const [members, setMembers] = useState([]);
   const [expenses, setExpenses] = useState([]);
   const [newMember, setNewMember] = useState("");
+  const [events, setEvents] = useState([]);
+  const [eventInput, setEventInput] = useState("");
   const now = new Date();
   const [selectedMonth, setSelectedMonth] = useState(now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0"));
   const [isEvent, setIsEvent] = useState(false);
   const [eventName, setEventName] = useState("");
-  const [eventInput, setEventInput] = useState("");
-  const [events, setEvents] = useState([]);
-
-  const fetchEvents = async () => {
-    const rows = await supa.getEvents();
-    if (Array.isArray(rows)) setEvents(rows);
-  };
-
-  const createEvent = async () => {
-    const n = eventInput.trim();
-    if (!n) return;
-    await supa.addEvent(n);
-    await fetchEvents();
-    setEventName(n);
-    setEventInput("");
-  };
-
-  const deleteEvent = async (ev) => {
-    if (!window.confirm(`「${ev.name}」を削除しますか？\n関連する支出データは残ります。`)) return;
-    await supa.deleteEvent(ev.id);
-    await fetchEvents();
-    if (eventName === ev.name) setEventName("");
-  };
   const [showForm, setShowForm] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
   const [editId, setEditId] = useState(null);
@@ -147,6 +207,11 @@ function App() {
     if (Array.isArray(rows)) setExpenses(rows);
   }, [periodKey]);
 
+  const fetchEvents = async () => {
+    const rows = await supa.getEvents();
+    if (Array.isArray(rows)) setEvents(rows);
+  };
+
   useEffect(() => { if (page === "main") { fetchExpenses(); fetchEvents(); } }, [fetchExpenses, page]);
   useEffect(() => {
     if (page !== "main") return;
@@ -154,9 +219,7 @@ function App() {
     return () => clearInterval(t);
   }, [fetchExpenses, page]);
 
-  const handleJoin = (id, name, room) => {
-    setMyName(name); setMembers(room.members); setPage("main");
-  };
+  const handleJoin = (id, name, room) => { setMyName(name); setMembers(room.members); setPage("main"); };
 
   const addMember = () => {
     const n = newMember.trim();
@@ -174,6 +237,22 @@ function App() {
     supa.updateMembers(ROOM_ID, updated);
   };
 
+  const createEvent = async () => {
+    const n = eventInput.trim();
+    if (!n) return;
+    await supa.addEvent(n);
+    await fetchEvents();
+    setEventName(n);
+    setEventInput("");
+  };
+
+  const deleteEvent = async (ev) => {
+    if (!window.confirm(`「${ev.name}」を削除しますか？`)) return;
+    await supa.deleteEvent(ev.id);
+    await fetchEvents();
+    if (eventName === ev.name) setEventName("");
+  };
+
   if (page === "entry") return <EntryPage onJoin={handleJoin} />;
 
   return (
@@ -187,16 +266,11 @@ function App() {
       </div>
 
       <div style={{ maxWidth: 520, margin: "0 auto", padding: "16px 16px 100px" }}>
-
         {/* Period selector */}
         <div style={{ background: "#fff", borderRadius: 16, padding: "14px 16px", marginBottom: 16, boxShadow: "0 2px 8px rgba(0,0,0,0.06)" }}>
           <div style={{ display: "flex", gap: 8, marginBottom: 12 }}>
-            <button onClick={() => setIsEvent(false)} style={{ flex: 1, border: "none", borderRadius: 10, padding: "7px", cursor: "pointer", fontWeight: 600, fontSize: 13, background: !isEvent ? "linear-gradient(135deg,#667eea,#764ba2)" : "#f5f5f5", color: !isEvent ? "#fff" : "#555" }}>
-              📅 月次
-            </button>
-            <button onClick={() => setIsEvent(true)} style={{ flex: 1, border: "none", borderRadius: 10, padding: "7px", cursor: "pointer", fontWeight: 600, fontSize: 13, background: isEvent ? "linear-gradient(135deg,#f093fb,#f5576c)" : "#f5f5f5", color: isEvent ? "#fff" : "#555" }}>
-              🎉 イベント
-            </button>
+            <button onClick={() => setIsEvent(false)} style={{ flex: 1, border: "none", borderRadius: 10, padding: "7px", cursor: "pointer", fontWeight: 600, fontSize: 13, background: !isEvent ? "linear-gradient(135deg,#667eea,#764ba2)" : "#f5f5f5", color: !isEvent ? "#fff" : "#555" }}>📅 月次</button>
+            <button onClick={() => setIsEvent(true)} style={{ flex: 1, border: "none", borderRadius: 10, padding: "7px", cursor: "pointer", fontWeight: 600, fontSize: 13, background: isEvent ? "linear-gradient(135deg,#f093fb,#f5576c)" : "#f5f5f5", color: isEvent ? "#fff" : "#555" }}>🎉 イベント</button>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             {!isEvent ? (
@@ -204,42 +278,30 @@ function App() {
                 style={{ border: "none", fontSize: 16, fontWeight: 600, color: "#333", background: "transparent", outline: "none", flex: 1 }} />
             ) : (
               <div style={{ flex: 1 }}>
-                {/* イベント選択 */}
                 <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
-                  <select
-                    value={eventName}
-                    onChange={e => setEventName(e.target.value)}
-                    style={{ flex: 1, border: "1.5px solid #eee", borderRadius: 10, padding: "8px 10px", fontSize: 14, outline: "none", background: "#fafafa", color: eventName ? "#333" : "#aaa" }}
-                  >
+                  <select value={eventName} onChange={e => setEventName(e.target.value)}
+                    style={{ flex: 1, border: "1.5px solid #eee", borderRadius: 10, padding: "8px 10px", fontSize: 14, outline: "none", background: "#fafafa", color: eventName ? "#333" : "#aaa" }}>
                     <option value="">イベントを選択…</option>
-                    {events.map(ev => (
-                      <option key={ev.id} value={ev.name}>{ev.name}</option>
-                    ))}
+                    {events.map(ev => <option key={ev.id} value={ev.name}>{ev.name}</option>)}
                   </select>
                   {eventName && (
-                    <button onClick={() => {
-                      const ev = events.find(e => e.name === eventName);
-                      if (ev) deleteEvent(ev);
-                    }} style={{ background: "#fff0f0", color: "#e53935", border: "none", borderRadius: 10, padding: "8px 12px", cursor: "pointer", fontWeight: 600, fontSize: 13 }}>削除</button>
+                    <button onClick={() => { const ev = events.find(e => e.name === eventName); if (ev) deleteEvent(ev); }}
+                      style={{ background: "#fff0f0", color: "#e53935", border: "none", borderRadius: 10, padding: "8px 12px", cursor: "pointer", fontWeight: 600, fontSize: 13 }}>削除</button>
                   )}
                 </div>
-                {/* 新規イベント作成 */}
                 <div style={{ display: "flex", gap: 8 }}>
-                  <input
-                    placeholder="新しいイベント名…"
-                    value={eventInput}
-                    onChange={e => setEventInput(e.target.value)}
-                    onKeyDown={e => e.key === "Enter" && createEvent()}
-                    style={{ flex: 1, border: "1.5px solid #eee", borderRadius: 10, padding: "8px 10px", fontSize: 14, outline: "none", background: "#fafafa" }}
-                  />
+                  <input placeholder="新しいイベント名…" value={eventInput} onChange={e => setEventInput(e.target.value)} onKeyDown={e => e.key === "Enter" && createEvent()}
+                    style={{ flex: 1, border: "1.5px solid #eee", borderRadius: 10, padding: "8px 10px", fontSize: 14, outline: "none", background: "#fafafa" }} />
                   <button onClick={createEvent} style={{ background: "linear-gradient(135deg,#f093fb,#f5576c)", color: "#fff", border: "none", borderRadius: 10, padding: "8px 12px", cursor: "pointer", fontWeight: 600, fontSize: 13 }}>作成</button>
                 </div>
               </div>
             )}
-            <button onClick={() => setShowSummary(true)} disabled={isEvent && !eventName.trim()}
-              style={{ background: "linear-gradient(135deg,#43cea2,#185a9d)", color: "#fff", border: "none", borderRadius: 10, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, opacity: (isEvent && !eventName.trim()) ? 0.4 : 1 }}>
-              精算 →
-            </button>
+            {!isEvent && (
+              <button onClick={() => setShowSummary(true)} style={{ background: "linear-gradient(135deg,#43cea2,#185a9d)", color: "#fff", border: "none", borderRadius: 10, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>精算 →</button>
+            )}
+            {isEvent && eventName && (
+              <button onClick={() => setShowSummary(true)} style={{ background: "linear-gradient(135deg,#43cea2,#185a9d)", color: "#fff", border: "none", borderRadius: 10, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600 }}>精算 →</button>
+            )}
           </div>
         </div>
 
@@ -250,9 +312,7 @@ function App() {
             {members.map(m => (
               <div key={m} style={{ background: m === myName ? "#f0f4ff" : "#f5f5f5", borderRadius: 20, padding: "5px 10px 5px 14px", fontSize: 13, color: "#555", display: "flex", alignItems: "center", gap: 4 }}>
                 <span>👤</span>{m}
-                {m !== myName && (
-                  <button onClick={() => removeMember(m)} style={{ background: "none", border: "none", cursor: "pointer", color: "#bbb", fontSize: 13, padding: "0 0 0 2px", lineHeight: 1 }}>✕</button>
-                )}
+                {m !== myName && <button onClick={() => removeMember(m)} style={{ background: "none", border: "none", cursor: "pointer", color: "#bbb", fontSize: 13, padding: "0 0 0 2px", lineHeight: 1 }}>✕</button>}
               </div>
             ))}
           </div>
@@ -273,12 +333,14 @@ function App() {
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {expenses.map(exp => {
               const cat = CATEGORIES.find(c => c.id === exp.category) || CATEGORIES[CATEGORIES.length - 1];
+              const ratios = parseSplitStr(exp.split, members);
+              const splitDisp = exp.split === "equal" ? "均等" : members.map(m => (ratios[m] || 0) + "%").join(" : ");
               return (
                 <div key={exp.id} style={{ background: "#fff", borderRadius: 16, padding: "14px 16px", boxShadow: "0 2px 8px rgba(0,0,0,0.06)", display: "flex", alignItems: "center", gap: 12 }}>
                   <div style={{ fontSize: 26, width: 40, textAlign: "center" }}>{cat.icon}</div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontWeight: 600, color: "#333", fontSize: 15 }}>{exp.store || "—"}</div>
-                    <div style={{ fontSize: 12, color: "#999", marginTop: 2 }}>{exp.date} · {cat.label} · {exp.paid_by} · {exp.split}</div>
+                    <div style={{ fontSize: 12, color: "#999", marginTop: 2 }}>{exp.date} · {cat.label} · {exp.paid_by} · {splitDisp}</div>
                   </div>
                   <div style={{ fontWeight: 700, color: "#667eea", fontSize: 16 }}>¥{Number(exp.amount).toLocaleString()}</div>
                   <button onClick={() => { setEditId(exp.id); setShowForm(true); }} style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "#bbb" }}>✏️</button>
@@ -290,9 +352,7 @@ function App() {
       </div>
 
       <button onClick={() => { setEditId(null); setShowForm(true); }}
-        style={{ position: "fixed", bottom: 28, right: 24, width: 56, height: 56, borderRadius: "50%", background: "linear-gradient(135deg,#667eea,#764ba2)", color: "#fff", fontSize: 28, border: "none", cursor: "pointer", boxShadow: "0 4px 16px rgba(102,126,234,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 20 }}>
-        +
-      </button>
+        style={{ position: "fixed", bottom: 28, right: 24, width: 56, height: 56, borderRadius: "50%", background: "linear-gradient(135deg,#667eea,#764ba2)", color: "#fff", fontSize: 28, border: "none", cursor: "pointer", boxShadow: "0 4px 16px rgba(102,126,234,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 20 }}>+</button>
 
       {showForm && (
         <ExpenseForm
@@ -300,27 +360,15 @@ function App() {
           editData={editId ? expenses.find(e => e.id === editId) : null}
           onSave={(exp) => {
             const full = { ...exp, room_id: ROOM_ID };
-            if (editId) {
-              setExpenses(prev => prev.map(e => e.id === editId ? full : e));
-              supa.updateExpense(editId, exp);
-            } else {
-              setExpenses(prev => [...prev, full]);
-              supa.addExpense(full);
-            }
+            if (editId) { setExpenses(prev => prev.map(e => e.id === editId ? full : e)); supa.updateExpense(editId, exp); }
+            else { setExpenses(prev => [...prev, full]); supa.addExpense(full); }
             setShowForm(false); setEditId(null);
           }}
-          onDelete={editId ? () => {
-            setExpenses(prev => prev.filter(e => e.id !== editId));
-            supa.deleteExpense(editId);
-            setShowForm(false); setEditId(null);
-          } : null}
+          onDelete={editId ? () => { setExpenses(prev => prev.filter(e => e.id !== editId)); supa.deleteExpense(editId); setShowForm(false); setEditId(null); } : null}
           onClose={() => { setShowForm(false); setEditId(null); }}
         />
       )}
-
-      {showSummary && (
-        <SummaryModal expenses={expenses} members={members} period={isEvent ? eventName : selectedMonth} onClose={() => setShowSummary(false)} />
-      )}
+      {showSummary && <SummaryModal expenses={expenses} members={members} period={isEvent ? eventName : selectedMonth} onClose={() => setShowSummary(false)} />}
     </div>
   );
 }
@@ -334,19 +382,11 @@ function ExpenseForm({ members, myName, periodKey, isEvent, editData, onSave, on
   const [category, setCategory] = useState(editData ? editData.category : "rent");
   const [store, setStore] = useState(editData ? editData.store : "");
   const [paidBy, setPaidBy] = useState(editData ? editData.paid_by : myName);
-  const [splitMode, setSplitMode] = useState(() => {
-    if (!editData) return "50:50";
-    return ["50:50", "60:40", "70:30"].includes(editData.split) ? editData.split : "自由入力";
-  });
-  const [customSplit, setCustomSplit] = useState(() => {
-    if (!editData) return "";
-    return ["50:50", "60:40", "70:30"].includes(editData.split) ? "" : editData.split;
-  });
+  const [split, setSplit] = useState(editData ? editData.split : "equal");
 
   const handleSave = () => {
     if (!date || !amount || !store) return;
-    const splitVal = splitMode === "自由入力" ? customSplit : splitMode;
-    onSave({ id: editData ? editData.id : String(Date.now()), month: periodKey, date, amount: Number(amount), category, store, paid_by: paidBy, split: splitVal });
+    onSave({ id: editData ? editData.id : String(Date.now()), month: periodKey, date, amount: Number(amount), category, store, paid_by: paidBy, split });
   };
 
   return (
@@ -388,25 +428,12 @@ function ExpenseForm({ members, myName, periodKey, isEvent, editData, onSave, on
           ))}
         </div>
         <Label>按分</Label>
-        <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 8 }}>
-          {SPLIT_PRESETS.map(p => (
-            <button key={p} onClick={() => setSplitMode(p)} style={{
-              background: splitMode === p ? "linear-gradient(135deg,#f093fb,#f5576c)" : "#f5f5f5",
-              color: splitMode === p ? "#fff" : "#555", border: "none", borderRadius: 12, padding: "10px 14px",
-              cursor: "pointer", fontWeight: 600, fontSize: 13, textAlign: "left"
-            }}>{splitLabel(p, members)}</button>
-          ))}
-        </div>
-        {splitMode === "自由入力" && (
-          <input placeholder={"例：" + (members[0] || "A") + "が60なら 60:40"} value={customSplit} onChange={e => setCustomSplit(e.target.value)} style={iStyle} />
-        )}
+        <SplitSelector members={members} value={split} onChange={setSplit} />
         <button onClick={handleSave} disabled={!date || !amount || !store}
-          style={{ ...bStyle, background: "linear-gradient(135deg,#667eea,#764ba2)", color: "#fff", marginTop: 8, opacity: (!date || !amount || !store) ? 0.5 : 1 }}>
+          style={{ ...bStyle, background: "linear-gradient(135deg,#667eea,#764ba2)", color: "#fff", marginTop: 16, opacity: (!date || !amount || !store) ? 0.5 : 1 }}>
           {editData ? "更新する" : "追加する"}
         </button>
-        {onDelete && (
-          <button onClick={onDelete} style={{ ...bStyle, background: "#fff0f0", color: "#e53935", marginTop: 8 }}>削除する</button>
-        )}
+        {onDelete && <button onClick={onDelete} style={{ ...bStyle, background: "#fff0f0", color: "#e53935", marginTop: 8 }}>削除する</button>}
       </div>
     </div>
   );
@@ -414,25 +441,7 @@ function ExpenseForm({ members, myName, periodKey, isEvent, editData, onSave, on
 
 // ---- Summary Modal ----
 function SummaryModal({ expenses, members, period, onClose }) {
-  const totals = {};
-  members.forEach(m => { totals[m] = { paid: 0, owed: 0 }; });
-  expenses.forEach(exp => {
-    const [r1, r2] = parseSplit(exp.split, members.length);
-    members.forEach((m, i) => { totals[m].owed += exp.amount * (i === 0 ? r1 : r2); });
-    if (totals[exp.paid_by] !== undefined) totals[exp.paid_by].paid += exp.amount;
-  });
-  const balances = members.map(m => ({ name: m, bal: totals[m].paid - totals[m].owed }));
-  const settlements = [];
-  const p2 = balances.filter(b => b.bal > 0.5).sort((a, b) => b.bal - a.bal).map(x => ({ ...x }));
-  const n2 = balances.filter(b => b.bal < -0.5).sort((a, b) => a.bal - b.bal).map(x => ({ ...x }));
-  let pi = 0, ni = 0;
-  while (pi < p2.length && ni < n2.length) {
-    const amt = Math.min(p2[pi].bal, -n2[ni].bal);
-    settlements.push({ from: n2[ni].name, to: p2[pi].name, amount: Math.round(amt) });
-    p2[pi].bal -= amt; n2[ni].bal += amt;
-    if (Math.abs(p2[pi].bal) < 0.5) pi++;
-    if (Math.abs(n2[ni].bal) < 0.5) ni++;
-  }
+  const { totals, settlements } = calcSettlements(expenses, members);
   const total = expenses.reduce((s, e) => s + e.amount, 0);
 
   return (
