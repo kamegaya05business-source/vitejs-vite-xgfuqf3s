@@ -13,6 +13,9 @@ const supa = {
   addExpense: (exp) => api(`expenses`, { method: "POST", body: JSON.stringify(exp), headers: { ...h, "Prefer": "return=representation" } }),
   updateExpense: (id, exp) => api(`expenses?id=eq.${id}`, { method: "PATCH", body: JSON.stringify(exp), headers: { ...h, "Prefer": "return=representation" } }),
   deleteExpense: (id) => api(`expenses?id=eq.${id}`, { method: "DELETE" }),
+  getEvents: () => api(`events?select=*&order=created_at.desc`),
+  addEvent: (name) => api(`events`, { method: "POST", body: JSON.stringify({ name, room_id: ROOM_ID }), headers: { ...h, "Prefer": "return=representation" } }),
+  deleteEvent: (id) => api(`events?id=eq.${id}`, { method: "DELETE" }),
 };
 
 const CATEGORIES = [
@@ -40,8 +43,8 @@ function splitLabel(preset, members) {
 
 const ROOM_ID = "SHARED";
 
-const iStyle: React.CSSProperties = { width: "100%", border: "1.5px solid #eee", borderRadius: 12, padding: "11px 14px", fontSize: 15, outline: "none", marginBottom: 16, boxSizing: "border-box", background: "#fafafa", color: "#333" };
-const bStyle: React.CSSProperties = { width: "100%", border: "none", borderRadius: 14, padding: "14px", fontSize: 15, fontWeight: 600, cursor: "pointer", boxSizing: "border-box" };
+const iStyle = { width: "100%", border: "1.5px solid #eee", borderRadius: 12, padding: "11px 14px", fontSize: 15, outline: "none", marginBottom: 16, boxSizing: "border-box", background: "#fafafa", color: "#333" };
+const bStyle = { width: "100%", border: "none", borderRadius: 14, padding: "14px", fontSize: 15, fontWeight: 600, cursor: "pointer", boxSizing: "border-box" };
 
 function Label({ children }) {
   return <div style={{ fontSize: 13, fontWeight: 600, color: "#888", marginBottom: 6 }}>{children}</div>;
@@ -110,6 +113,29 @@ function App() {
   const [selectedMonth, setSelectedMonth] = useState(now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0"));
   const [isEvent, setIsEvent] = useState(false);
   const [eventName, setEventName] = useState("");
+  const [eventInput, setEventInput] = useState("");
+  const [events, setEvents] = useState([]);
+
+  const fetchEvents = async () => {
+    const rows = await supa.getEvents();
+    if (Array.isArray(rows)) setEvents(rows);
+  };
+
+  const createEvent = async () => {
+    const n = eventInput.trim();
+    if (!n) return;
+    await supa.addEvent(n);
+    await fetchEvents();
+    setEventName(n);
+    setEventInput("");
+  };
+
+  const deleteEvent = async (ev) => {
+    if (!window.confirm(`「${ev.name}」を削除しますか？\n関連する支出データは残ります。`)) return;
+    await supa.deleteEvent(ev.id);
+    await fetchEvents();
+    if (eventName === ev.name) setEventName("");
+  };
   const [showForm, setShowForm] = useState(false);
   const [showSummary, setShowSummary] = useState(false);
   const [editId, setEditId] = useState(null);
@@ -121,7 +147,7 @@ function App() {
     if (Array.isArray(rows)) setExpenses(rows);
   }, [periodKey]);
 
-  useEffect(() => { if (page === "main") fetchExpenses(); }, [fetchExpenses, page]);
+  useEffect(() => { if (page === "main") { fetchExpenses(); fetchEvents(); } }, [fetchExpenses, page]);
   useEffect(() => {
     if (page !== "main") return;
     const t = setInterval(fetchExpenses, 5000);
@@ -177,8 +203,38 @@ function App() {
               <input type="month" value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)}
                 style={{ border: "none", fontSize: 16, fontWeight: 600, color: "#333", background: "transparent", outline: "none", flex: 1 }} />
             ) : (
-              <input placeholder="イベント名（例：沖縄旅行）" value={eventName} onChange={e => setEventName(e.target.value)}
-                style={{ border: "none", fontSize: 15, fontWeight: 600, color: "#333", background: "transparent", outline: "none", flex: 1 }} />
+              <div style={{ flex: 1 }}>
+                {/* イベント選択 */}
+                <div style={{ display: "flex", gap: 8, marginBottom: 8 }}>
+                  <select
+                    value={eventName}
+                    onChange={e => setEventName(e.target.value)}
+                    style={{ flex: 1, border: "1.5px solid #eee", borderRadius: 10, padding: "8px 10px", fontSize: 14, outline: "none", background: "#fafafa", color: eventName ? "#333" : "#aaa" }}
+                  >
+                    <option value="">イベントを選択…</option>
+                    {events.map(ev => (
+                      <option key={ev.id} value={ev.name}>{ev.name}</option>
+                    ))}
+                  </select>
+                  {eventName && (
+                    <button onClick={() => {
+                      const ev = events.find(e => e.name === eventName);
+                      if (ev) deleteEvent(ev);
+                    }} style={{ background: "#fff0f0", color: "#e53935", border: "none", borderRadius: 10, padding: "8px 12px", cursor: "pointer", fontWeight: 600, fontSize: 13 }}>削除</button>
+                  )}
+                </div>
+                {/* 新規イベント作成 */}
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input
+                    placeholder="新しいイベント名…"
+                    value={eventInput}
+                    onChange={e => setEventInput(e.target.value)}
+                    onKeyDown={e => e.key === "Enter" && createEvent()}
+                    style={{ flex: 1, border: "1.5px solid #eee", borderRadius: 10, padding: "8px 10px", fontSize: 14, outline: "none", background: "#fafafa" }}
+                  />
+                  <button onClick={createEvent} style={{ background: "linear-gradient(135deg,#f093fb,#f5576c)", color: "#fff", border: "none", borderRadius: 10, padding: "8px 12px", cursor: "pointer", fontWeight: 600, fontSize: 13 }}>作成</button>
+                </div>
+              </div>
             )}
             <button onClick={() => setShowSummary(true)} disabled={isEvent && !eventName.trim()}
               style={{ background: "linear-gradient(135deg,#43cea2,#185a9d)", color: "#fff", border: "none", borderRadius: 10, padding: "7px 14px", cursor: "pointer", fontSize: 13, fontWeight: 600, opacity: (isEvent && !eventName.trim()) ? 0.4 : 1 }}>
