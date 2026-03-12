@@ -190,14 +190,19 @@ function App() {
           members={members} myName={myName} selectedMonth={selectedMonth} roomId={roomId}
           editData={editId ? expenses.find(e => e.id === editId) : null}
           onSave={async (exp) => {
-            if (editId) await supa.updateExpense(editId, exp);
-            else await supa.addExpense({ ...exp, room_id: roomId });
-            await fetchExpenses();
+            const full = { ...exp, room_id: roomId };
+            if (editId) {
+              setExpenses(prev => prev.map(e => e.id === editId ? full : e));
+              supa.updateExpense(editId, exp);
+            } else {
+              setExpenses(prev => [...prev, full]);
+              supa.addExpense(full);
+            }
             setShowForm(false); setEditId(null);
           }}
           onDelete={editId ? async () => {
-            await supa.deleteExpense(editId);
-            await fetchExpenses();
+            setExpenses(prev => prev.filter(e => e.id !== editId));
+            supa.deleteExpense(editId);
             setShowForm(false); setEditId(null);
           } : null}
           onClose={() => { setShowForm(false); setEditId(null); }}
@@ -231,10 +236,8 @@ function ExpenseForm({ members, myName, selectedMonth, roomId, editData, onSave,
 
   const handleSave = async () => {
     if (!date || !amount || !store) return;
-    setSaving(true);
     const splitVal = splitMode === "自由入力" ? customSplit : splitMode;
-    await onSave({ id: editData?.id || Date.now().toString(), month: selectedMonth, date, amount: Number(amount), category, store, paid_by: paidBy, split: splitVal });
-    setSaving(false);
+    onSave({ id: editData?.id || Date.now().toString(), month: selectedMonth, date, amount: Number(amount), category, store, paid_by: paidBy, split: splitVal });
   };
 
   return (
