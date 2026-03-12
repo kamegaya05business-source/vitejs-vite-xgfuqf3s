@@ -19,7 +19,7 @@ const supa = {
 };
 
 const CATEGORIES = [
-  { id: "rent",          label: "家賃",   icon: "🏠" },
+  { id: "rent", label: "家賃", icon: "🏠", img: "/rent.png" },
   { id: "grocery",      label: "日用品", icon: "🧴" },
   { id: "food",         label: "食費",   icon: "🍽️" },
   { id: "entertainment",label: "娯楽費", icon: "🎮" },
@@ -411,7 +411,10 @@ function ExpenseForm({ members, myName, periodKey, isEvent, editData, onSave, on
               color: category === c.id ? "#fff" : "#555", border: "none", borderRadius: 12, padding: "10px 4px",
               cursor: "pointer", fontSize: 12, fontWeight: 600, display: "flex", flexDirection: "column", alignItems: "center", gap: 4, lineHeight: 1.3
             }}>
-              <span style={{ fontSize: 22, lineHeight: 1 }}>{c.icon}</span>
+              {c.img
+  ? <img src={c.img} style={{ width: 28, height: 28, objectFit: "contain" }} />
+  : <span style={{ fontSize: 22, lineHeight: 1 }}>{c.icon}</span>
+}
               <span>{c.label}</span>
             </button>
           ))}
