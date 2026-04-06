@@ -1,13 +1,437 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite + React + TS</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>精算Tool</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f7f8fc; color: #333; min-height: 100vh; }
+
+.app { max-width: 480px; margin: 0 auto; padding: 0 0 80px; }
+
+.header { background: #fff; border-bottom: 0.5px solid #eee; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+.header-title { font-size: 17px; font-weight: 500; }
+.header-btn { background: none; border: none; font-size: 22px; cursor: pointer; padding: 4px; }
+
+.period-bar { background: #fff; padding: 12px 16px; border-bottom: 0.5px solid #eee; }
+.period-tabs { display: flex; gap: 8px; margin-bottom: 10px; }
+.period-tab { flex: 1; padding: 7px; border: 0.5px solid #ddd; border-radius: 8px; background: none; font-size: 13px; cursor: pointer; color: #666; }
+.period-tab.active { background: #e6f1fb; border-color: #378add; color: #185fa5; font-weight: 500; }
+
+.month-selector { display: flex; align-items: center; gap: 8px; }
+.month-selector select { flex: 1; padding: 8px 10px; border: 0.5px solid #eee; border-radius: 8px; background: #f7f8fc; font-size: 14px; color: #333; }
+.event-row { display: flex; gap: 8px; align-items: center; }
+.event-row input { flex: 1; padding: 8px 10px; border: 0.5px solid #eee; border-radius: 8px; background: #f7f8fc; font-size: 14px; color: #333; }
+.event-row select { flex: 1; padding: 8px 10px; border: 0.5px solid #eee; border-radius: 8px; background: #f7f8fc; font-size: 14px; color: #333; }
+.btn-sm { padding: 7px 12px; border: 0.5px solid #ddd; border-radius: 8px; background: none; font-size: 13px; cursor: pointer; color: #333; white-space: nowrap; }
+.btn-sm:hover { background: #f7f8fc; }
+
+.expense-list { padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
+.expense-card { background: #fff; border: 0.5px solid #eee; border-radius: 12px; padding: 12px 14px; display: flex; align-items: center; gap: 10px; }
+.expense-icon { width: 36px; height: 36px; border-radius: 8px; background: #f7f8fc; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+.expense-main { flex: 1; min-width: 0; }
+.expense-top { display: flex; justify-content: space-between; align-items: baseline; }
+.expense-store { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
+.expense-amount { font-size: 15px; font-weight: 500; }
+.expense-sub { display: flex; gap: 6px; margin-top: 2px; flex-wrap: wrap; }
+.expense-tag { font-size: 11px; color: #888; background: #f7f8fc; padding: 1px 6px; border-radius: 10px; }
+.expense-del { background: none; border: none; font-size: 16px; color: #aaa; cursor: pointer; padding: 4px; flex-shrink: 0; }
+
+.fab { position: fixed; bottom: 24px; right: 24px; width: 52px; height: 52px; border-radius: 50%; background: #378add; color: #fff; border: none; font-size: 26px; cursor: pointer; display: flex; align-items: center; justify-content: center; z-index: 20; }
+
+.seisan-btn { display: block; margin: 0 16px; background: #fff; border: 0.5px solid #ddd; border-radius: 12px; padding: 12px 16px; width: calc(100% - 32px); font-size: 14px; cursor: pointer; color: #333; text-align: center; }
+.seisan-btn:hover { background: #f7f8fc; }
+
+.seisan-result { margin: 12px 16px; background: #e6f1fb; border: 0.5px solid #b5d4f4; border-radius: 12px; padding: 14px 16px; }
+.seisan-result h3 { font-size: 14px; font-weight: 500; color: #185fa5; margin-bottom: 10px; }
+.seisan-item { font-size: 14px; color: #185fa5; margin-bottom: 4px; }
+
+.overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: flex-end; justify-content: center; z-index: 100; }
+.modal { background: #fff; border-radius: 20px 20px 0 0; padding: 20px 16px 32px; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto; }
+.modal h2 { font-size: 16px; font-weight: 500; margin-bottom: 16px; }
+.modal-close { float: right; background: none; border: none; font-size: 20px; cursor: pointer; color: #888; }
+.form-label { font-size: 13px; color: #888; margin-bottom: 5px; display: block; }
+.form-input { width: 100%; padding: 10px 12px; border: 0.5px solid #eee; border-radius: 8px; font-size: 15px; background: #f7f8fc; color: #333; margin-bottom: 14px; }
+.cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
+.cat-btn { padding: 10px 4px; border: 0.5px solid #eee; border-radius: 8px; background: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 11px; color: #666; }
+.cat-btn.active { border-color: #378add; background: #e6f1fb; color: #185fa5; }
+.cat-icon { font-size: 20px; line-height: 1; display: block; }
+.payer-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
+.payer-btn { flex: 1; min-width: 60px; padding: 9px; border: 0.5px solid #eee; border-radius: 8px; background: none; font-size: 13px; cursor: pointer; color: #666; }
+.payer-btn.active { border-color: #378add; background: #e6f1fb; color: #185fa5; font-weight: 500; }
+.split-toggle { display: flex; gap: 8px; margin-bottom: 12px; }
+.split-btn { flex: 1; padding: 8px; border: 0.5px solid #eee; border-radius: 8px; background: none; font-size: 13px; cursor: pointer; color: #666; }
+.split-btn.active { border-color: #378add; background: #e6f1fb; color: #185fa5; font-weight: 500; }
+.slider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+.slider-name { font-size: 13px; min-width: 60px; color: #333; }
+.slider-pct { font-size: 13px; min-width: 36px; text-align: right; font-weight: 500; color: #333; }
+.btn-submit { width: 100%; padding: 13px; background: #378add; color: #fff; border: none; border-radius: 12px; font-size: 15px; font-weight: 500; cursor: pointer; margin-top: 4px; }
+
+.member-tag { display: inline-flex; align-items: center; gap: 5px; background: #f7f8fc; border: 0.5px solid #eee; border-radius: 20px; padding: 5px 10px; margin: 3px; font-size: 13px; }
+.member-del { background: none; border: none; color: #aaa; cursor: pointer; font-size: 14px; padding: 0 0 0 2px; }
+.member-add-row { display: flex; gap: 8px; margin-top: 10px; }
+.member-add-row input { flex: 1; padding: 9px 12px; border: 0.5px solid #eee; border-radius: 8px; font-size: 14px; background: #f7f8fc; color: #333; }
+.empty { text-align: center; padding: 40px 20px; color: #aaa; font-size: 14px; }
+</style>
+</head>
+<body>
+<div class="app" id="app"></div>
+<script>
+const CATS = [
+  { id:"rent",  label:"家賃",   icon:"🏠" },
+  { id:"daily", label:"日用品", icon:"🧴" },
+  { id:"food",  label:"食費",   icon:"🍽️" },
+  { id:"fun",   label:"娯楽費", icon:"🎮" },
+  { id:"util",  label:"光熱費", icon:"💡" },
+  { id:"trans", label:"交通費", icon:"🚃" },
+  { id:"med",   label:"医療費", icon:"💊" },
+  { id:"comm",  label:"通信費", icon:"📱" },
+  { id:"other", label:"その他", icon:"📦" }
+];
+
+let state = {
+  members:       JSON.parse(localStorage.getItem('members') || '["自分","パートナー"]'),
+  mode:          'month',
+  year:          new Date().getFullYear(),
+  month:         new Date().getMonth() + 1,
+  eventName:     '',
+  events:        JSON.parse(localStorage.getItem('events') || '[]'),
+  selectedEvent: '',
+  expenses:      JSON.parse(localStorage.getItem('expenses') || '[]'),
+  showForm:      false,
+  showSettings:  false,
+  showSeisan:    false,
+  form: { date: today(), amount: '', cat: 'food', store: '', payer: '', splitMode: 'equal', splits: {} },
+  newMember: '',
+};
+
+function today() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function saveMembers()  { localStorage.setItem('members',  JSON.stringify(state.members)); }
+function saveExpenses() { localStorage.setItem('expenses', JSON.stringify(state.expenses)); }
+function saveEvents()   { localStorage.setItem('events',   JSON.stringify(state.events)); }
+
+function currentKey() {
+  if (state.mode === 'event') return 'event:' + state.selectedEvent;
+  return state.year + '-' + String(state.month).padStart(2,'0');
+}
+
+function filteredExpenses() {
+  const k = currentKey();
+  return state.expenses.filter(e => e.key === k);
+}
+
+function calcSeisan(expenses, members) {
+  const balance = {};
+  members.forEach(m => balance[m] = 0);
+  expenses.forEach(e => {
+    const amt = Number(e.amount);
+    Object.entries(e.splits).forEach(([m, pct]) => {
+      balance[m] = (balance[m] || 0) - amt * pct / 100;
+    });
+    balance[e.payer] = (balance[e.payer] || 0) + amt;
+  });
+  const pos = [], neg = [];
+  Object.entries(balance).forEach(([m, v]) => {
+    if (v > 0.5)  pos.push({m, v});
+    else if (v < -0.5) neg.push({m, v: -v});
+  });
+  const results = [];
+  const pc = pos.map(x => ({...x})), nc = neg.map(x => ({...x}));
+  let i = 0, j = 0;
+  while (i < pc.length && j < nc.length) {
+    const pay = Math.min(pc[i].v, nc[j].v);
+    results.push(nc[j].m + ' → ' + pc[i].m + ' に ¥' + Math.round(pay).toLocaleString());
+    pc[i].v -= pay; nc[j].v -= pay;
+    if (pc[i].v < 0.5) i++;
+    if (nc[j].v < 0.5) j++;
+  }
+  return results;
+}
+
+function initSplits() {
+  const n = state.members.length;
+  const base = Math.floor(100 / n);
+  const rem = 100 - base * n;
+  const s = {};
+  state.members.forEach((m, i) => s[m] = base + (i === 0 ? rem : 0));
+  return s;
+}
+
+function render() {
+  const app = document.getElementById('app');
+  const exps = filteredExpenses();
+
+  // --- 期間セレクタ ---
+  let periodHTML = '';
+  if (state.mode === 'month') {
+    const years = [2024, 2025, 2026, 2027];
+    const months = Array.from({length:12}, (_, i) => i + 1);
+    periodHTML = `<div class="month-selector">
+      <select onchange="state.year=+this.value;state.showSeisan=false;render()">
+        ${years.map(y => `<option value="${y}"${y===state.year?'selected':''}>${y}年</option>`).join('')}
+      </select>
+      <select onchange="state.month=+this.value;state.showSeisan=false;render()">
+        ${months.map(m => `<option value="${m}"${m===state.month?'selected':''}>${m}月</option>`).join('')}
+      </select>
+    </div>`;
+  } else {
+    const eventOpts = state.events.map(ev =>
+      `<option value="${ev.id}"${ev.id===state.selectedEvent?'selected':''}>${ev.name}</option>`
+    ).join('');
+    periodHTML = `<div class="event-row">
+      <select onchange="state.selectedEvent=this.value;state.showSeisan=false;render()">
+        ${eventOpts || '<option value="">イベントなし</option>'}
+      </select>
+      <input placeholder="イベント名" value="${state.eventName}" oninput="state.eventName=this.value"
+        style="flex:1;padding:8px 10px;border:0.5px solid #eee;border-radius:8px;background:#f7f8fc;font-size:14px;color:#333;">
+      <button class="btn-sm" onclick="addEvent()">作成</button>
+      ${state.selectedEvent ? `<button class="btn-sm" onclick="delEvent()" style="color:#e24b4a;">削除</button>` : ''}
+    </div>`;
+  }
+
+  // --- 支出リスト ---
+  let expHTML = exps.length === 0
+    ? `<div class="empty">まだ支出がありません</div>`
+    : exps.slice().reverse().map(e => {
+        const cat = CATS.find(c => c.id === e.cat) || CATS[8];
+        return `<div class="expense-card">
+          <div class="expense-icon">${cat.icon}</div>
+          <div class="expense-main">
+            <div class="expense-top">
+              <span class="expense-store">${e.store || cat.label}</span>
+              <span class="expense-amount">¥${Number(e.amount).toLocaleString()}</span>
+            </div>
+            <div class="expense-sub">
+              <span class="expense-tag">${e.date.slice(5)}</span>
+              <span class="expense-tag">${e.payer}が支払</span>
+              <span class="expense-tag">${cat.label}</span>
+            </div>
+          </div>
+          <button class="expense-del" onclick="delExpense('${e.id}')">✕</button>
+        </div>`;
+      }).join('');
+
+  // --- 精算結果 ---
+  let seisanHTML = '';
+  if (state.showSeisan) {
+    const results = calcSeisan(exps, state.members);
+    seisanHTML = `<div class="seisan-result">
+      <h3>精算結果</h3>
+      ${results.length
+        ? results.map(r => `<div class="seisan-item">${r}</div>`).join('')
+        : '<div class="seisan-item">精算不要です</div>'}
+    </div>`;
+  }
+
+  // --- 入力フォーム ---
+  let formHTML = '';
+  if (state.showForm) {
+    const f = state.form;
+    if (!f.payer && state.members.length > 0) f.payer = state.members[0];
+    if (Object.keys(f.splits).length === 0) f.splits = initSplits();
+
+    let splitHTML = '';
+    if (f.splitMode === 'equal') {
+      const n = state.members.length;
+      const pct = Math.round(100 / n);
+      splitHTML = `<div style="font-size:13px;color:#888;margin-bottom:14px;">
+        ${state.members.map(m => `<span style="margin-right:8px;">${m}: ${pct}%</span>`).join('')}
+      </div>`;
+    } else {
+      const total = Object.values(f.splits).reduce((a,b)=>a+b,0);
+      splitHTML = `<div style="margin-bottom:14px;">
+        ${state.members.map(m => {
+          const pct = f.splits[m] !== undefined ? f.splits[m] : 0;
+          return `<div class="slider-row">
+            <span class="slider-name">${m}</span>
+            <input type="range" min="0" max="100" step="1" value="${pct}" style="flex:1;"
+              oninput="adjustSplit('${m}',+this.value);render()">
+            <span class="slider-pct">${pct}%</span>
+          </div>`;
+        }).join('')}
+        <div style="font-size:12px;color:${total===100?'#3b6d11':'#e24b4a'};">合計: ${total}%</div>
+      </div>`;
+    }
+
+    formHTML = `<div class="overlay" onclick="if(event.target===this){state.showForm=false;render()}">
+      <div class="modal">
+        <button class="modal-close" onclick="state.showForm=false;render()">✕</button>
+        <h2>支出を追加</h2>
+        <label class="form-label">日付</label>
+        <input class="form-input" type="date" value="${f.date}" onchange="state.form.date=this.value">
+        <label class="form-label">金額</label>
+        <input class="form-input" type="number" placeholder="0" value="${f.amount}"
+          oninput="state.form.amount=this.value" inputmode="numeric">
+        <label class="form-label">カテゴリ</label>
+        <div class="cat-grid">
+          ${CATS.map(c => `<button class="cat-btn${f.cat===c.id?' active':''}"
+            onclick="state.form.cat='${c.id}';render()">
+            <span class="cat-icon">${c.icon}</span>${c.label}
+          </button>`).join('')}
+        </div>
+        <label class="form-label">支出先</label>
+        <input class="form-input" placeholder="スーパー、Netflix..." value="${f.store}"
+          oninput="state.form.store=this.value">
+        <label class="form-label">支払った人</label>
+        <div class="payer-row">
+          ${state.members.map(m => `<button class="payer-btn${f.payer===m?' active':''}"
+            onclick="state.form.payer='${m}';render()">${m}</button>`).join('')}
+        </div>
+        <label class="form-label">按分</label>
+        <div class="split-toggle">
+          <button class="split-btn${f.splitMode==='equal'?' active':''}"
+            onclick="state.form.splitMode='equal';state.form.splits=initSplits();render()">均等</button>
+          <button class="split-btn${f.splitMode==='custom'?' active':''}"
+            onclick="state.form.splitMode='custom';render()">カスタム</button>
+        </div>
+        ${splitHTML}
+        <button class="btn-submit" onclick="addExpense()">追加する</button>
+      </div>
+    </div>`;
+  }
+
+  // --- 設定パネル ---
+  let settingsHTML = '';
+  if (state.showSettings) {
+    settingsHTML = `<div class="overlay" onclick="if(event.target===this){state.showSettings=false;render()}">
+      <div class="modal">
+        <button class="modal-close" onclick="state.showSettings=false;render()">✕</button>
+        <h2>メンバー設定</h2>
+        <div style="margin-bottom:10px;">
+          ${state.members.map((m,i) => `<span class="member-tag">${m}
+            <button class="member-del" onclick="delMember(${i})">✕</button>
+          </span>`).join('')}
+        </div>
+        <div class="member-add-row">
+          <input placeholder="名前を入力" value="${state.newMember}"
+            oninput="state.newMember=this.value"
+            onkeydown="if(event.key==='Enter')addMember()">
+          <button class="btn-sm" onclick="addMember()">追加</button>
+        </div>
+      </div>
+    </div>`;
+  }
+
+  app.innerHTML = `
+    <div class="header">
+      <span class="header-title">精算Tool</span>
+      <button class="header-btn" onclick="state.showSettings=true;render()" title="設定">⚙️</button>
+    </div>
+    <div class="period-bar">
+      <div class="period-tabs">
+        <button class="period-tab${state.mode==='month'?' active':''}"
+          onclick="state.mode='month';state.showSeisan=false;render()">月次</button>
+        <button class="period-tab${state.mode==='event'?' active':''}"
+          onclick="state.mode='event';state.showSeisan=false;render()">イベント</button>
+      </div>
+      ${periodHTML}
+    </div>
+    <div class="expense-list">${expHTML}</div>
+    <button class="seisan-btn" onclick="state.showSeisan=!state.showSeisan;render()">
+      ${state.showSeisan ? '精算を閉じる' : '精算を見る →'}
+    </button>
+    ${seisanHTML}
+    <button class="fab" onclick="openForm()">+</button>
+    ${formHTML}
+    ${settingsHTML}
+  `;
+}
+
+function openForm() {
+  state.showForm = true;
+  state.form = {
+    date: today(), amount: '', cat: 'food', store: '',
+    payer: state.members[0] || '', splitMode: 'equal', splits: initSplits()
+  };
+  render();
+}
+
+function addExpense() {
+  const f = state.form;
+  if (!f.amount || !f.payer) return;
+  let splits = {};
+  if (f.splitMode === 'equal') {
+    const n = state.members.length;
+    const base = Math.floor(100 / n);
+    const rem = 100 - base * n;
+    state.members.forEach((m, i) => splits[m] = base + (i === 0 ? rem : 0));
+  } else {
+    splits = {...f.splits};
+  }
+  state.expenses.push({
+    id: Date.now().toString(),
+    key: currentKey(),
+    date: f.date, amount: f.amount, cat: f.cat,
+    store: f.store, payer: f.payer, splits
+  });
+  saveExpenses();
+  state.showForm = false;
+  state.showSeisan = false;
+  render();
+}
+
+function delExpense(id) {
+  if (!confirm('この支出を削除しますか？')) return;
+  state.expenses = state.expenses.filter(e => e.id !== id);
+  saveExpenses();
+  render();
+}
+
+function addMember() {
+  const name = state.newMember.trim();
+  if (!name || state.members.includes(name)) return;
+  state.members.push(name);
+  state.newMember = '';
+  saveMembers();
+  render();
+}
+
+function delMember(i) {
+  if (state.members.length <= 1) return;
+  if (!confirm('「' + state.members[i] + '」を削除しますか？')) return;
+  state.members.splice(i, 1);
+  saveMembers();
+  render();
+}
+
+function addEvent() {
+  const name = state.eventName.trim();
+  if (!name) return;
+  const ev = { id: Date.now().toString(), name };
+  state.events.push(ev);
+  state.selectedEvent = ev.id;
+  state.eventName = '';
+  saveEvents();
+  render();
+}
+
+function delEvent() {
+  if (!state.selectedEvent) return;
+  const ev = state.events.find(e => e.id === state.selectedEvent);
+  if (!confirm('「' + (ev ? ev.name : '') + '」を削除しますか？')) return;
+  state.events   = state.events.filter(e => e.id !== state.selectedEvent);
+  state.expenses = state.expenses.filter(e => e.key !== 'event:' + state.selectedEvent);
+  state.selectedEvent = state.events[0]?.id || '';
+  saveExpenses();
+  saveEvents();
+  render();
+}
+
+function adjustSplit(name, val) {
+  const others = state.members.filter(m => m !== name);
+  const remaining = 100 - val;
+  const base = Math.floor(remaining / others.length);
+  const rem = remaining - base * others.length;
+  state.form.splits[name] = val;
+  others.forEach((m, i) => state.form.splits[m] = base + (i === 0 ? rem : 0));
+}
+
+render();
+</script>
+</body>
 </html>
