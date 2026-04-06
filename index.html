@@ -85,13 +85,15 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .member-add-row { display: flex; gap: 8px; margin-top: 10px; }
 .member-add-row input { flex: 1; padding: 9px 12px; border: 0.5px solid #eee; border-radius: 8px; font-size: 14px; background: #f7f8fc; color: #333; }
 .empty { text-align: center; padding: 40px 20px; color: #aaa; font-size: 14px; }
+.loading-full { text-align: center; padding: 60px 20px; color: #aaa; font-size: 14px; }
 input[type=file] { display: none; }
 </style>
 </head>
 <body>
-<div class="app" id="app"></div>
+<div class="app" id="app"><div class="loading-full"><span class="spinner"></span>読み込み中...</div></div>
 <input type="file" id="fileCamera" accept="image/*" capture="environment">
 <input type="file" id="fileUpload" accept="image/*">
+
 <script>
 const CATS=[{id:"rent",label:"家賃",icon:"🏠"},{id:"daily",label:"日用品",icon:"🧴"},{id:"food",label:"食費",icon:"🍽️"},{id:"fun",label:"娯楽費",icon:"🎮"},{id:"util",label:"光熱費",icon:"💡"},{id:"trans",label:"交通費",icon:"🚃"},{id:"med",label:"医療費",icon:"💊"},{id:"comm",label:"通信費",icon:"📱"},{id:"other",label:"その他",icon:"📦"}];
 
@@ -99,33 +101,62 @@ let state={
   allMembers:JSON.parse(localStorage.getItem('allMembers')||'["自分","パートナー"]'),
   periodMembers:JSON.parse(localStorage.getItem('periodMembers')||'{}'),
   mode:'month',year:new Date().getFullYear(),month:new Date().getMonth()+1,
-  eventName:'',events:JSON.parse(localStorage.getItem('events')||'[]'),selectedEvent:'',
-  expenses:JSON.parse(localStorage.getItem('expenses')||'[]'),
+  eventName:'',events:[],selectedEvent:'',
+  expenses:[],
   showForm:false,showSettings:false,showSeisan:false,showCamMenu:false,showOCR:false,
   editId:null,ocrImage:null,ocrMime:'image/jpeg',ocrLoading:false,ocrDone:false,
   form:{date:today(),amount:'',cat:'food',store:'',payer:'',splitMode:'equal',splits:{}},
-  newMember:''
+  newMember:'',loading:false
 };
 
 function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-function saveAll(){localStorage.setItem('allMembers',JSON.stringify(state.allMembers));}
+function saveAllMembers(){localStorage.setItem('allMembers',JSON.stringify(state.allMembers));}
 function savePM(){localStorage.setItem('periodMembers',JSON.stringify(state.periodMembers));}
-function saveExp(){localStorage.setItem('expenses',JSON.stringify(state.expenses));}
-function saveEv(){localStorage.setItem('events',JSON.stringify(state.events));}
 
 function currentKey(){if(state.mode==='event')return 'event:'+state.selectedEvent;return state.year+'-'+String(state.month).padStart(2,'0');}
 function currentMembers(){const k=currentKey();if(state.periodMembers[k]&&state.periodMembers[k].length>0)return state.periodMembers[k];return[...state.allMembers];}
 function togglePeriodMember(name){const k=currentKey();let m=state.periodMembers[k]?[...state.periodMembers[k]]:[...state.allMembers];if(m.includes(name)){if(m.length<=1)return;m=m.filter(x=>x!==name);}else m.push(name);state.periodMembers[k]=m;savePM();render();}
 function filteredExp(){return state.expenses.filter(e=>e.key===currentKey());}
 function initSplits(members){const m=members||currentMembers();const n=m.length,base=Math.floor(100/n),rem=100-base*n;const s={};m.forEach((name,i)=>s[name]=base+(i===0?rem:0));return s;}
-function calcSeisan(expenses,members){const bal={};members.forEach(m=>bal[m]=0);expenses.forEach(e=>{const amt=Number(e.amount);Object.entries(e.splits).forEach(([m,pct])=>{if(bal[m]!==undefined)bal[m]-=amt*pct/100;});if(bal[e.payer]!==undefined)bal[e.payer]+=amt;});const pos=[],neg=[];Object.entries(bal).forEach(([m,v])=>{if(v>0.5)pos.push({m,v});else if(v<-0.5)neg.push({m,v:-v});});const res=[],pc=pos.map(x=>({...x})),nc=neg.map(x=>({...x}));let i=0,j=0;while(i<pc.length&&j<nc.length){const pay=Math.min(pc[i].v,nc[j].v);res.push(nc[j].m+' → '+pc[i].m+' に ¥'+Math.round(pay).toLocaleString());pc[i].v-=pay;nc[j].v-=pay;if(pc[i].v<0.5)i++;if(nc[j].v<0.5)j++;}return res;}
+function calcSeisan(expenses,members){const bal={};members.forEach(m=>bal[m]=0);expenses.forEach(e=>{const amt=Number(e.amount);const sp=typeof e.splits==='string'?JSON.parse(e.splits):e.splits;Object.entries(sp).forEach(([m,pct])=>{if(bal[m]!==undefined)bal[m]-=amt*pct/100;});if(bal[e.payer]!==undefined)bal[e.payer]+=amt;});const pos=[],neg=[];Object.entries(bal).forEach(([m,v])=>{if(v>0.5)pos.push({m,v});else if(v<-0.5)neg.push({m,v:-v});});const res=[],pc=pos.map(x=>({...x})),nc=neg.map(x=>({...x}));let i=0,j=0;while(i<pc.length&&j<nc.length){const pay=Math.min(pc[i].v,nc[j].v);res.push(nc[j].m+' → '+pc[i].m+' に ¥'+Math.round(pay).toLocaleString());pc[i].v-=pay;nc[j].v-=pay;if(pc[i].v<0.5)i++;if(nc[j].v<0.5)j++;}return res;}
+
+// Supabase API呼び出し
+async function loadExpenses(){
+  const k=currentKey();
+  const r=await fetch('/api/expenses?key='+encodeURIComponent(k));
+  const data=await r.json();
+  if(Array.isArray(data))state.expenses=state.expenses.filter(e=>e.key!==k).concat(data);
+}
+async function loadEvents(){
+  const r=await fetch('/api/events');
+  const data=await r.json();
+  if(Array.isArray(data))state.events=data;
+}
+async function pushExpense(exp){
+  const body={...exp,splits:JSON.stringify(exp.splits)};
+  await fetch('/api/expenses',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+}
+async function updateExpense(id,exp){
+  const body={...exp,splits:JSON.stringify(exp.splits)};
+  await fetch('/api/expenses?id='+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+}
+async function deleteExpense(id){
+  await fetch('/api/expenses?id='+id,{method:'DELETE'});
+}
+async function pushEvent(ev){
+  const r=await fetch('/api/events',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ev)});
+  const data=await r.json();
+  return Array.isArray(data)?data[0]:data;
+}
+async function deleteEventApi(id){
+  await fetch('/api/events?id='+id,{method:'DELETE'});
+}
 
 function buildSplit(form,members){
   if(form.splitMode==='equal'){const pct=members.length>0?Math.round(100/members.length):0;return '<div style="font-size:13px;color:#888;margin-bottom:14px;">'+members.map(m=>'<span style="margin-right:8px;">'+m+': '+pct+'%</span>').join('')+'</div>';}
   const total=Object.values(form.splits).reduce((a,b)=>a+b,0);
   return '<div style="margin-bottom:14px;">'+members.map(m=>{const pct=form.splits[m]!==undefined?form.splits[m]:0;return '<div class="slider-row"><span class="slider-name">'+m+'</span><input type="range" min="0" max="100" step="1" value="'+pct+'" style="flex:1;" oninput="adjustSplit(\''+m+'\',+this.value);render()"><span class="slider-pct">'+pct+'%</span></div>';}).join('')+'<div style="font-size:12px;color:'+(total===100?'#3b6d11':'#e24b4a')+';">合計: '+total+'%</div></div>';
 }
-
 function buildForm(f,members,isEdit,isOCR){
   return '<label class="form-label">日付</label><input class="form-input" type="date" value="'+f.date+'" onchange="state.form.date=this.value">'+
     '<label class="form-label">金額</label><input class="form-input" type="number" placeholder="0" value="'+f.amount+'" oninput="state.form.amount=this.value" inputmode="numeric">'+
@@ -146,10 +177,10 @@ function render(){
   let periodHTML='';
   if(state.mode==='month'){
     const years=[2024,2025,2026,2027],months=Array.from({length:12},(_,i)=>i+1);
-    periodHTML='<div class="month-selector"><select onchange="state.year=+this.value;state.showSeisan=false;render()">'+years.map(y=>'<option value="'+y+'"'+(y===state.year?' selected':'')+'>'+y+'年</option>').join('')+'</select><select onchange="state.month=+this.value;state.showSeisan=false;render()">'+months.map(m=>'<option value="'+m+'"'+(m===state.month?' selected':'')+'>'+m+'月</option>').join('')+'</select></div>';
+    periodHTML='<div class="month-selector"><select onchange="state.year=+this.value;state.showSeisan=false;loadAndRender()">'+years.map(y=>'<option value="'+y+'"'+(y===state.year?' selected':'')+'>'+y+'年</option>').join('')+'</select><select onchange="state.month=+this.value;state.showSeisan=false;loadAndRender()">'+months.map(m=>'<option value="'+m+'"'+(m===state.month?' selected':'')+'>'+m+'月</option>').join('')+'</select></div>';
   }else{
     const opts=state.events.map(ev=>'<option value="'+ev.id+'"'+(ev.id===state.selectedEvent?' selected':'')+'>'+ev.name+'</option>').join('');
-    periodHTML='<div class="event-row"><select onchange="state.selectedEvent=this.value;state.showSeisan=false;render()">'+( opts||'<option value="">イベントなし</option>')+'</select><input placeholder="イベント名" value="'+state.eventName+'" oninput="state.eventName=this.value" style="flex:1;min-width:80px;padding:8px 10px;border:0.5px solid #eee;border-radius:8px;background:#f7f8fc;font-size:14px;color:#333;"><button class="btn-sm" onclick="addEvent()">作成</button>'+(state.selectedEvent?'<button class="btn-sm danger" onclick="delEvent()">削除</button>':'')+' </div>';
+    periodHTML='<div class="event-row"><select onchange="state.selectedEvent=this.value;state.showSeisan=false;loadAndRender()">'+( opts||'<option value="">イベントなし</option>')+'</select><input placeholder="イベント名" value="'+state.eventName+'" oninput="state.eventName=this.value" style="flex:1;min-width:80px;padding:8px 10px;border:0.5px solid #eee;border-radius:8px;background:#f7f8fc;font-size:14px;color:#333;"><button class="btn-sm" onclick="addEvent()">作成</button>'+(state.selectedEvent?'<button class="btn-sm danger" onclick="delEvent()">削除</button>':'')+' </div>';
   }
 
   const msel='<div><div class="section-label">参加メンバー</div><div class="member-select-row">'+state.allMembers.map(m=>'<button class="member-check'+(members.includes(m)?' active':'')+'" onclick="togglePeriodMember(\''+m+'\')">'+m+'</button>').join('')+'</div></div>';
@@ -172,12 +203,19 @@ function render(){
   if(state.showCamMenu){camMenu='<div class="cam-overlay" onclick="state.showCamMenu=false;render()"></div><div class="cam-menu"><div class="cam-menu-item" onclick="state.showCamMenu=false;render();document.getElementById(\'fileCamera\').click()"><span style="font-size:20px;">📷</span>カメラで撮影</div><div class="cam-menu-item" onclick="state.showCamMenu=false;render();document.getElementById(\'fileUpload\').click()"><span style="font-size:20px;">🖼️</span>写真から選択</div></div>';}
 
   app.innerHTML='<div class="header"><span class="header-title">精算Tool</span><button class="header-btn" onclick="state.showSettings=true;render()">⚙️</button></div>'+
-    '<div class="period-bar"><div class="period-tabs"><button class="period-tab'+(state.mode==='month'?' active':'')+'" onclick="state.mode=\'month\';state.showSeisan=false;render()">月次</button><button class="period-tab'+(state.mode==='event'?' active':'')+'" onclick="state.mode=\'event\';state.showSeisan=false;render()">イベント</button></div>'+periodHTML+msel+'</div>'+
+    '<div class="period-bar"><div class="period-tabs"><button class="period-tab'+(state.mode==='month'?' active':'')+'" onclick="state.mode=\'month\';state.showSeisan=false;loadAndRender()">月次</button><button class="period-tab'+(state.mode==='event'?' active':'')+'" onclick="state.mode=\'event\';state.showSeisan=false;loadAndRender()">イベント</button></div>'+periodHTML+msel+'</div>'+
     '<div class="expense-list">'+expHTML+'</div>'+
     '<button class="seisan-btn" onclick="state.showSeisan=!state.showSeisan;render()">'+(state.showSeisan?'精算を閉じる':'精算を見る →')+'</button>'+
     seisanHTML+
     '<div class="fab-area"><button class="fab fab-camera" onclick="state.showCamMenu=!state.showCamMenu;render()" title="領収書読み取り">📷</button><button class="fab fab-main" onclick="openForm()">+</button></div>'+
     camMenu+modal+ocrModal+settingsModal;
+}
+
+async function loadAndRender(){
+  render();
+  await loadExpenses();
+  if(state.mode==='event') await loadEvents();
+  render();
 }
 
 function setupFileInputs(){
@@ -199,33 +237,89 @@ function setupFileInputs(){
 async function runOCR(){
   if(!state.ocrImage)return;
   state.ocrLoading=true;render();
-  const prompt='この領収書の画像から情報を読み取り、JSONのみ返してください。\n{"date":"YYYY-MM-DD","amount":数値,"store":"店名","category":"food/daily/rent/fun/util/trans/med/comm/other","note":"補足"}\nカテゴリ: food=飲食, daily=日用品, trans=交通, util=光熱費, comm=通信, med=医療, fun=娯楽, rent=家賃, other=その他';
   try{
-    const res = await fetch('/api/ocr', {method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: state.ocrImage, mime: state.ocrMime })});
-    const parsed = await res.json();
+    const res=await fetch('/api/ocr',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:state.ocrImage,mime:state.ocrMime})});
+    const parsed=await res.json();
     state.form.date=parsed.date||today();
     state.form.amount=parsed.amount||'';
     state.form.store=parsed.store||'';
-if(CATS.find(c=>c.id===parsed.category))state.form.cat=parsed.category;
+    if(CATS.find(c=>c.id===parsed.category))state.form.cat=parsed.category;
     state.ocrDone=true;
   }catch(e){alert('読み取りに失敗しました。もう一度お試しください。');console.error(e);}
   state.ocrLoading=false;render();
 }
 
-function addFromOCR(){addExpense();state.showOCR=false;state.ocrImage=null;state.ocrDone=false;}
-function openForm(){const m=currentMembers();state.showForm=true;state.editId=null;state.form={date:today(),amount:'',cat:'food',store:'',payer:m[0]||'',splitMode:'equal',splits:initSplits(m)};render();}
-function openEdit(id){const e=state.expenses.find(x=>x.id===id);if(!e)return;state.showForm=true;state.editId=id;state.form={date:e.date,amount:e.amount,cat:e.cat,store:e.store||'',payer:e.payer,splitMode:'custom',splits:{...e.splits}};render();}
-function addExpense(){const f=state.form;if(!f.amount||!f.payer)return;const m=currentMembers();let splits={};if(f.splitMode==='equal'){const n=m.length,base=Math.floor(100/n),rem=100-base*n;m.forEach((x,i)=>splits[x]=base+(i===0?rem:0));}else splits={...f.splits};state.expenses.push({id:Date.now().toString(),key:currentKey(),date:f.date,amount:f.amount,cat:f.cat,store:f.store,payer:f.payer,splits});saveExp();state.showForm=false;state.showSeisan=false;render();}
-function saveEdit(){const f=state.form;if(!f.amount||!f.payer)return;const m=currentMembers();let splits={};if(f.splitMode==='equal'){const n=m.length,base=Math.floor(100/n),rem=100-base*n;m.forEach((x,i)=>splits[x]=base+(i===0?rem:0));}else splits={...f.splits};state.expenses=state.expenses.map(e=>e.id!==state.editId?e:{...e,date:f.date,amount:f.amount,cat:f.cat,store:f.store,payer:f.payer,splits});saveExp();state.showForm=false;state.editId=null;state.showSeisan=false;render();}
-function delExpenseFromForm(){if(!confirm('この支出を削除しますか？'))return;state.expenses=state.expenses.filter(e=>e.id!==state.editId);saveExp();state.showForm=false;state.editId=null;render();}
-function adjustSplit(name,val){const m=currentMembers();const others=m.filter(x=>x!==name);const rem=100-val,base=Math.floor(rem/others.length),r=rem-base*others.length;state.form.splits[name]=val;others.forEach((x,i)=>state.form.splits[x]=base+(i===0?r:0));}
-function addMember(){const name=state.newMember.trim();if(!name||state.allMembers.includes(name))return;state.allMembers.push(name);state.newMember='';saveAll();render();}
-function delMember(i){if(state.allMembers.length<=1)return;if(!confirm('「'+state.allMembers[i]+'」を削除しますか？'))return;state.allMembers.splice(i,1);saveAll();render();}
-function addEvent(){const name=state.eventName.trim();if(!name)return;const ev={id:Date.now().toString(),name};state.events.push(ev);state.selectedEvent=ev.id;state.eventName='';saveEv();render();}
-function delEvent(){if(!state.selectedEvent)return;const ev=state.events.find(e=>e.id===state.selectedEvent);if(!confirm('「'+(ev?ev.name:'')+'」を削除しますか？'))return;state.events=state.events.filter(e=>e.id!==state.selectedEvent);state.expenses=state.expenses.filter(e=>e.key!=='event:'+state.selectedEvent);state.selectedEvent=state.events[0]?.id||'';saveExp();saveEv();render();}
+async function addFromOCR(){await addExpense();state.showOCR=false;state.ocrImage=null;state.ocrDone=false;}
 
-render();
-setupFileInputs();
+function openForm(){const m=currentMembers();state.showForm=true;state.editId=null;state.form={date:today(),amount:'',cat:'food',store:'',payer:m[0]||'',splitMode:'equal',splits:initSplits(m)};render();}
+
+function openEdit(id){
+  const e=state.expenses.find(x=>x.id===id);if(!e)return;
+  const sp=typeof e.splits==='string'?JSON.parse(e.splits):e.splits;
+  state.showForm=true;state.editId=id;
+  state.form={date:e.date,amount:e.amount,cat:e.cat,store:e.store||'',payer:e.payer,splitMode:'custom',splits:sp};
+  render();
+}
+
+async function addExpense(){
+  const f=state.form;if(!f.amount||!f.payer)return;
+  const m=currentMembers();let splits={};
+  if(f.splitMode==='equal'){const n=m.length,base=Math.floor(100/n),rem=100-base*n;m.forEach((x,i)=>splits[x]=base+(i===0?rem:0));}
+  else splits={...f.splits};
+  const exp={id:Date.now().toString(),key:currentKey(),date:f.date,amount:f.amount,cat:f.cat,store:f.store,payer:f.payer,splits};
+  state.expenses.push(exp);
+  state.showForm=false;state.showSeisan=false;render();
+  await pushExpense(exp);
+}
+
+async function saveEdit(){
+  const f=state.form;if(!f.amount||!f.payer)return;
+  const m=currentMembers();let splits={};
+  if(f.splitMode==='equal'){const n=m.length,base=Math.floor(100/n),rem=100-base*n;m.forEach((x,i)=>splits[x]=base+(i===0?rem:0));}
+  else splits={...f.splits};
+  state.expenses=state.expenses.map(e=>e.id!==state.editId?e:{...e,date:f.date,amount:f.amount,cat:f.cat,store:f.store,payer:f.payer,splits});
+  state.showForm=false;state.editId=null;state.showSeisan=false;render();
+  await updateExpense(state.editId||f.id,{date:f.date,amount:f.amount,cat:f.cat,store:f.store,payer:f.payer,splits});
+}
+
+async function delExpenseFromForm(){
+  if(!confirm('この支出を削除しますか？'))return;
+  const id=state.editId;
+  state.expenses=state.expenses.filter(e=>e.id!==id);
+  state.showForm=false;state.editId=null;render();
+  await deleteExpense(id);
+}
+
+function adjustSplit(name,val){const m=currentMembers();const others=m.filter(x=>x!==name);const rem=100-val,base=Math.floor(rem/others.length),r=rem-base*others.length;state.form.splits[name]=val;others.forEach((x,i)=>state.form.splits[x]=base+(i===0?r:0));}
+
+function addMember(){const name=state.newMember.trim();if(!name||state.allMembers.includes(name))return;state.allMembers.push(name);state.newMember='';saveAllMembers();render();}
+function delMember(i){if(state.allMembers.length<=1)return;if(!confirm('「'+state.allMembers[i]+'」を削除しますか？'))return;state.allMembers.splice(i,1);saveAllMembers();render();}
+
+async function addEvent(){
+  const name=state.eventName.trim();if(!name)return;
+  const ev={id:Date.now().toString(),name};
+  state.events.push(ev);state.selectedEvent=ev.id;state.eventName='';render();
+  await pushEvent(ev);
+}
+
+async function delEvent(){
+  if(!state.selectedEvent)return;
+  const ev=state.events.find(e=>e.id===state.selectedEvent);
+  if(!confirm('「'+(ev?ev.name:'')+'」を削除しますか？'))return;
+  const id=state.selectedEvent;
+  state.events=state.events.filter(e=>e.id!==id);
+  state.expenses=state.expenses.filter(e=>e.key!=='event:'+id);
+  state.selectedEvent=state.events[0]?.id||'';
+  render();
+  await deleteEventApi(id);
+}
+
+// 初期化
+(async()=>{
+  await Promise.all([loadExpenses(),loadEvents()]);
+  render();
+  setupFileInputs();
+})();
 </script>
 </body>
 </html>
