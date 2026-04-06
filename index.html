@@ -316,7 +316,12 @@ async function delEvent(){
 
 // 初期化
 (async()=>{
-  await Promise.all([loadExpenses(),loadEvents()]);
+  try {
+    await loadExpenses();
+    await loadEvents();
+  } catch(e) {
+    console.error('初期化エラー:', e);
+  }
   render();
   setupFileInputs();
 })();
