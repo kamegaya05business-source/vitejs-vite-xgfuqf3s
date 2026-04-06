@@ -201,12 +201,12 @@ async function runOCR(){
   state.ocrLoading=true;render();
   const prompt='この領収書の画像から情報を読み取り、JSONのみ返してください。\n{"date":"YYYY-MM-DD","amount":数値,"store":"店名","category":"food/daily/rent/fun/util/trans/med/comm/other","note":"補足"}\nカテゴリ: food=飲食, daily=日用品, trans=交通, util=光熱費, comm=通信, med=医療, fun=娯楽, rent=家賃, other=その他';
   try{
-    const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:500,messages:[{role:'user',content:[{type:'image',source:{type:'base64',media_type:state.ocrMime,data:state.ocrImage}},{type:'text',text:prompt}]}]})});
-    const data=await res.json();
-    const text=(data.content||[]).map(b=>b.text||'').join('');
-    const parsed=JSON.parse(text.replace(/```json|```/g,'').trim());
-    state.form.date=parsed.date||today();state.form.amount=parsed.amount||'';state.form.store=parsed.store||'';
-    if(CATS.find(c=>c.id===parsed.category))state.form.cat=parsed.category;
+    const res = await fetch('/api/ocr', {method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image: state.ocrImage, mime: state.ocrMime })});
+    const parsed = await res.json();
+    state.form.date=parsed.date||today();
+    state.form.amount=parsed.amount||'';
+    state.form.store=parsed.store||'';
+if(CATS.find(c=>c.id===parsed.category))state.form.cat=parsed.category;
     state.ocrDone=true;
   }catch(e){alert('読み取りに失敗しました。もう一度お試しください。');console.error(e);}
   state.ocrLoading=false;render();
