@@ -68,9 +68,10 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .split-toggle { display: flex; gap: 8px; margin-bottom: 12px; }
 .split-btn { flex: 1; padding: 8px; border: 0.5px solid #eee; border-radius: 8px; background: none; font-size: 13px; cursor: pointer; color: #666; }
 .split-btn.active { border-color: #378add; background: #e6f1fb; color: #185fa5; font-weight: 500; }
-.slider-row { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-.slider-name { font-size: 13px; min-width: 60px; color: #333; }
-.slider-pct { font-size: 13px; min-width: 36px; text-align: right; font-weight: 500; color: #333; }
+.slider-row { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.slider-name { font-size: 13px; min-width: 55px; color: #333; }
+.slider-pct-input { width: 54px; padding: 5px 6px; border: 0.5px solid #eee; border-radius: 6px; font-size: 13px; font-weight: 500; text-align: center; background: #f7f8fc; color: #333; }
+.slider-pct-input:focus { outline: none; border-color: #378add; }
 .btn-submit { width: 100%; padding: 13px; background: #378add; color: #fff; border: none; border-radius: 12px; font-size: 15px; font-weight: 500; cursor: pointer; margin-top: 4px; }
 .btn-delete { width: 100%; padding: 11px; background: none; color: #e24b4a; border: 0.5px solid #f0c0c0; border-radius: 12px; font-size: 14px; cursor: pointer; margin-top: 8px; }
 .ocr-preview { width: 100%; border-radius: 10px; max-height: 200px; object-fit: contain; background: #f7f8fc; margin-bottom: 12px; border: 0.5px solid #eee; }
@@ -97,90 +98,103 @@ input[type=file] { display: none; }
 <script>
 const CATS=[{id:"rent",label:"家賃",icon:"🏠"},{id:"daily",label:"日用品",icon:"🧴"},{id:"food",label:"食費",icon:"🍽️"},{id:"fun",label:"娯楽費",icon:"🎮"},{id:"util",label:"光熱費",icon:"💡"},{id:"trans",label:"交通費",icon:"🚃"},{id:"med",label:"医療費",icon:"💊"},{id:"comm",label:"通信費",icon:"📱"},{id:"other",label:"その他",icon:"📦"}];
 
-let state={
-  allMembers:JSON.parse(localStorage.getItem('allMembers')||'["自分","パートナー"]'),
-  periodMembers:JSON.parse(localStorage.getItem('periodMembers')||'{}'),
-  mode:'month',year:new Date().getFullYear(),month:new Date().getMonth()+1,
-  eventName:'',events:[],selectedEvent:'',
-  expenses:[],
-  showForm:false,showSettings:false,showSeisan:false,showCamMenu:false,showOCR:false,
-  editId:null,ocrImage:null,ocrMime:'image/jpeg',ocrLoading:false,ocrDone:false,
-  form:{date:today(),amount:'',cat:'food',store:'',payer:'',splitMode:'equal',splits:{}},
-  newMember:'',loading:false
+// localStorageの「自分」を削除（初回のみ）
+if (!localStorage.getItem('membersFixed')) {
+  const m = JSON.parse(localStorage.getItem('allMembers') || '[]');
+  const fixed = m.filter(x => x !== '自分' && x !== 'パートナー');
+  if (fixed.length > 0) localStorage.setItem('allMembers', JSON.stringify(fixed));
+  else localStorage.removeItem('allMembers');
+  localStorage.setItem('membersFixed', '1');
+}
+
+let state = {
+  allMembers: JSON.parse(localStorage.getItem('allMembers') || '[]'),
+  periodMembers: JSON.parse(localStorage.getItem('periodMembers') || '{}'),
+  mode: 'month', year: new Date().getFullYear(), month: new Date().getMonth()+1,
+  eventName: '', events: [], selectedEvent: '',
+  expenses: [],
+  showForm: false, showSettings: false, showSeisan: false, showCamMenu: false, showOCR: false,
+  editId: null, ocrImage: null, ocrMime: 'image/jpeg', ocrLoading: false, ocrDone: false,
+  form: { date: today(), amount: '', cat: 'food', store: '', payer: '', splitMode: 'equal', splits: {} },
+  newMember: ''
 };
 
-function today(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
-function saveAllMembers(){localStorage.setItem('allMembers',JSON.stringify(state.allMembers));}
-function savePM(){localStorage.setItem('periodMembers',JSON.stringify(state.periodMembers));}
+function today() { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function saveAllMembers() { localStorage.setItem('allMembers', JSON.stringify(state.allMembers)); }
+function savePM() { localStorage.setItem('periodMembers', JSON.stringify(state.periodMembers)); }
 
-function currentKey(){if(state.mode==='event')return 'event:'+state.selectedEvent;return state.year+'-'+String(state.month).padStart(2,'0');}
-function currentMembers(){const k=currentKey();if(state.periodMembers[k]&&state.periodMembers[k].length>0)return state.periodMembers[k];return[...state.allMembers];}
-function togglePeriodMember(name){const k=currentKey();let m=state.periodMembers[k]?[...state.periodMembers[k]]:[...state.allMembers];if(m.includes(name)){if(m.length<=1)return;m=m.filter(x=>x!==name);}else m.push(name);state.periodMembers[k]=m;savePM();render();}
-function filteredExp(){return state.expenses.filter(e=>e.key===currentKey());}
-function initSplits(members){const m=members||currentMembers();const n=m.length,base=Math.floor(100/n),rem=100-base*n;const s={};m.forEach((name,i)=>s[name]=base+(i===0?rem:0));return s;}
-function calcSeisan(expenses,members){const bal={};members.forEach(m=>bal[m]=0);expenses.forEach(e=>{const amt=Number(e.amount);const sp=typeof e.splits==='string'?JSON.parse(e.splits):e.splits;Object.entries(sp).forEach(([m,pct])=>{if(bal[m]!==undefined)bal[m]-=amt*pct/100;});if(bal[e.payer]!==undefined)bal[e.payer]+=amt;});const pos=[],neg=[];Object.entries(bal).forEach(([m,v])=>{if(v>0.5)pos.push({m,v});else if(v<-0.5)neg.push({m,v:-v});});const res=[],pc=pos.map(x=>({...x})),nc=neg.map(x=>({...x}));let i=0,j=0;while(i<pc.length&&j<nc.length){const pay=Math.min(pc[i].v,nc[j].v);res.push(nc[j].m+' → '+pc[i].m+' に ¥'+Math.round(pay).toLocaleString());pc[i].v-=pay;nc[j].v-=pay;if(pc[i].v<0.5)i++;if(nc[j].v<0.5)j++;}return res;}
+function currentKey() { if(state.mode==='event') return 'event:'+state.selectedEvent; return state.year+'-'+String(state.month).padStart(2,'0'); }
+function currentMembers() { const k=currentKey(); if(state.periodMembers[k]&&state.periodMembers[k].length>0) return state.periodMembers[k]; return [...state.allMembers]; }
+function togglePeriodMember(name) { const k=currentKey(); let m=state.periodMembers[k]?[...state.periodMembers[k]]:[...state.allMembers]; if(m.includes(name)){if(m.length<=1)return;m=m.filter(x=>x!==name);}else m.push(name); state.periodMembers[k]=m; savePM(); render(); }
+function filteredExp() { return state.expenses.filter(e=>e.key===currentKey()); }
+function initSplits(members) { const m=members||currentMembers(); const n=m.length,base=Math.floor(100/n),rem=100-base*n; const s={}; m.forEach((name,i)=>s[name]=base+(i===0?rem:0)); return s; }
+function getSplits(e) { return typeof e.splits==='string'?JSON.parse(e.splits):e.splits; }
 
-// Supabase API呼び出し
-async function loadExpenses(){
-  const k=currentKey();
-  const r=await fetch('/api/expenses?key='+encodeURIComponent(k));
-  const data=await r.json();
-  if(Array.isArray(data))state.expenses=state.expenses.filter(e=>e.key!==k).concat(data);
-}
-async function loadEvents(){
-  const r=await fetch('/api/events');
-  const data=await r.json();
-  if(Array.isArray(data))state.events=data;
-}
-async function pushExpense(exp){
-  const body={...exp,splits:JSON.stringify(exp.splits)};
-  await fetch('/api/expenses',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-}
-async function updateExpense(id,exp){
-  const body={...exp,splits:JSON.stringify(exp.splits)};
-  await fetch('/api/expenses?id='+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
-}
-async function deleteExpense(id){
-  await fetch('/api/expenses?id='+id,{method:'DELETE'});
-}
-async function pushEvent(ev){
-  const r=await fetch('/api/events',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ev)});
-  const data=await r.json();
-  return Array.isArray(data)?data[0]:data;
-}
-async function deleteEventApi(id){
-  await fetch('/api/events?id='+id,{method:'DELETE'});
+function calcSeisan(expenses, members) {
+  const bal={}; members.forEach(m=>bal[m]=0);
+  expenses.forEach(e=>{ const amt=Number(e.amount); const sp=getSplits(e); Object.entries(sp).forEach(([m,pct])=>{if(bal[m]!==undefined)bal[m]-=amt*pct/100;}); if(bal[e.payer]!==undefined)bal[e.payer]+=amt; });
+  const pos=[],neg=[]; Object.entries(bal).forEach(([m,v])=>{ if(v>0.5)pos.push({m,v}); else if(v<-0.5)neg.push({m,v:-v}); });
+  const res=[],pc=pos.map(x=>({...x})),nc=neg.map(x=>({...x})); let i=0,j=0;
+  while(i<pc.length&&j<nc.length){ const pay=Math.min(pc[i].v,nc[j].v); res.push(nc[j].m+' → '+pc[i].m+' に ¥'+Math.round(pay).toLocaleString()); pc[i].v-=pay;nc[j].v-=pay; if(pc[i].v<0.5)i++; if(nc[j].v<0.5)j++; }
+  return res;
 }
 
-function buildSplit(form,members){
-  if(form.splitMode==='equal'){const pct=members.length>0?Math.round(100/members.length):0;return '<div style="font-size:13px;color:#888;margin-bottom:14px;">'+members.map(m=>'<span style="margin-right:8px;">'+m+': '+pct+'%</span>').join('')+'</div>';}
+// API
+async function loadExpenses() { const k=currentKey(); const r=await fetch('/api/expenses?key='+encodeURIComponent(k)); const data=await r.json(); if(Array.isArray(data)) state.expenses=state.expenses.filter(e=>e.key!==k).concat(data); }
+async function loadEvents() { const r=await fetch('/api/events'); const data=await r.json(); if(Array.isArray(data)) state.events=data; }
+async function pushExpense(exp) { const body={...exp,splits:JSON.stringify(exp.splits)}; await fetch('/api/expenses',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); }
+async function updateExpense(id,exp) { const body={...exp,splits:JSON.stringify(exp.splits)}; await fetch('/api/expenses?id='+id,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); }
+async function deleteExpense(id) { await fetch('/api/expenses?id='+id,{method:'DELETE'}); }
+async function pushEvent(ev) { const r=await fetch('/api/events',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ev)}); const data=await r.json(); return Array.isArray(data)?data[0]:data; }
+async function deleteEventApi(id) { await fetch('/api/events?id='+id,{method:'DELETE'}); }
+
+// ②カスタム按分：スライダー＋数字入力
+function buildSplit(form, members) {
+  if (form.splitMode==='equal') {
+    const pct=members.length>0?Math.round(100/members.length):0;
+    return '<div style="font-size:13px;color:#888;margin-bottom:14px;">'+members.map(m=>'<span style="margin-right:8px;">'+m+': '+pct+'%</span>').join('')+'</div>';
+  }
   const total=Object.values(form.splits).reduce((a,b)=>a+b,0);
-  return '<div style="margin-bottom:14px;">'+members.map(m=>{const pct=form.splits[m]!==undefined?form.splits[m]:0;return '<div class="slider-row"><span class="slider-name">'+m+'</span><input type="range" min="0" max="100" step="1" value="'+pct+'" style="flex:1;" oninput="adjustSplit(\''+m+'\',+this.value);render()"><span class="slider-pct">'+pct+'%</span></div>';}).join('')+'<div style="font-size:12px;color:'+(total===100?'#3b6d11':'#e24b4a')+';">合計: '+total+'%</div></div>';
+  return '<div style="margin-bottom:14px;">'+
+    members.map(m=>{
+      const pct=form.splits[m]!==undefined?form.splits[m]:0;
+      return '<div class="slider-row">'+
+        '<span class="slider-name">'+m+'</span>'+
+        '<input type="range" min="0" max="100" step="1" value="'+pct+'" style="flex:1;" oninput="adjustSplit(\''+m+'\',+this.value);render()">'+
+        '<input class="slider-pct-input" type="number" min="0" max="100" value="'+pct+'" oninput="adjustSplit(\''+m+'\',+this.value);render()">'+
+        '<span style="font-size:12px;color:#888;">%</span>'+
+        '</div>';
+    }).join('')+
+    '<div style="font-size:12px;color:'+(total===100?'#3b6d11':'#e24b4a')+';">合計: '+total+'%</div>'+
+    '</div>';
 }
-function buildForm(f,members,isEdit,isOCR){
+
+function buildForm(f, members, isEdit, isOCR) {
   return '<label class="form-label">日付</label><input class="form-input" type="date" value="'+f.date+'" onchange="state.form.date=this.value">'+
     '<label class="form-label">金額</label><input class="form-input" type="number" placeholder="0" value="'+f.amount+'" oninput="state.form.amount=this.value" inputmode="numeric">'+
     '<label class="form-label">カテゴリ</label><div class="cat-grid">'+CATS.map(c=>'<button class="cat-btn'+(f.cat===c.id?' active':'')+'" onclick="state.form.cat=\''+c.id+'\';render()"><span class="cat-icon">'+c.icon+'</span>'+c.label+'</button>').join('')+'</div>'+
     '<label class="form-label">支出先</label><input class="form-input" placeholder="スーパー、Netflix..." value="'+f.store+'" oninput="state.form.store=this.value">'+
     '<label class="form-label">支払った人</label><div class="payer-row">'+members.map(m=>'<button class="payer-btn'+(f.payer===m?' active':'')+'" onclick="state.form.payer=\''+m+'\';render()">'+m+'</button>').join('')+'</div>'+
-    '<label class="form-label">按分</label><div class="split-toggle"><button class="split-btn'+(f.splitMode==='equal'?' active':'')+'" onclick="state.form.splitMode=\'equal\';state.form.splits=initSplits();render()">均等</button><button class="split-btn'+(f.splitMode==='custom'?' active':'')+'" onclick="state.form.splitMode=\'custom\';render()">カスタム</button></div>'+
-    buildSplit(f,members)+
+    '<label class="form-label">按分</label><div class="split-toggle">'+
+    '<button class="split-btn'+(f.splitMode==='equal'?' active':'')+'" onclick="state.form.splitMode=\'equal\';state.form.splits=initSplits();render()">均等</button>'+
+    '<button class="split-btn'+(f.splitMode==='custom'?' active':'')+'" onclick="state.form.splitMode=\'custom\';render()">カスタム</button>'+
+    '</div>'+buildSplit(f,members)+
     '<button class="btn-submit" onclick="'+(isOCR?'addFromOCR()':isEdit?'saveEdit()':'addExpense()')+'">'+(isOCR?'登録する':isEdit?'保存する':'追加する')+'</button>'+
     (isEdit?'<button class="btn-delete" onclick="delExpenseFromForm()">この支出を削除</button>':'');
 }
 
-function render(){
+function render() {
   const app=document.getElementById('app');
   const members=currentMembers();
   const exps=filteredExp();
 
   let periodHTML='';
-  if(state.mode==='month'){
+  if (state.mode==='month') {
     const years=[2024,2025,2026,2027],months=Array.from({length:12},(_,i)=>i+1);
     periodHTML='<div class="month-selector"><select onchange="state.year=+this.value;state.showSeisan=false;loadAndRender()">'+years.map(y=>'<option value="'+y+'"'+(y===state.year?' selected':'')+'>'+y+'年</option>').join('')+'</select><select onchange="state.month=+this.value;state.showSeisan=false;loadAndRender()">'+months.map(m=>'<option value="'+m+'"'+(m===state.month?' selected':'')+'>'+m+'月</option>').join('')+'</select></div>';
-  }else{
+  } else {
     const opts=state.events.map(ev=>'<option value="'+ev.id+'"'+(ev.id===state.selectedEvent?' selected':'')+'>'+ev.name+'</option>').join('');
-    periodHTML='<div class="event-row"><select onchange="state.selectedEvent=this.value;state.showSeisan=false;loadAndRender()">'+( opts||'<option value="">イベントなし</option>')+'</select><input placeholder="イベント名" value="'+state.eventName+'" oninput="state.eventName=this.value" style="flex:1;min-width:80px;padding:8px 10px;border:0.5px solid #eee;border-radius:8px;background:#f7f8fc;font-size:14px;color:#333;"><button class="btn-sm" onclick="addEvent()">作成</button>'+(state.selectedEvent?'<button class="btn-sm danger" onclick="delEvent()">削除</button>':'')+' </div>';
+    periodHTML='<div class="event-row"><select onchange="state.selectedEvent=this.value;state.showSeisan=false;loadAndRender()">'+(opts||'<option value="">イベントなし</option>')+'</select><input placeholder="イベント名" value="'+state.eventName+'" oninput="state.eventName=this.value" style="flex:1;min-width:80px;padding:8px 10px;border:0.5px solid #eee;border-radius:8px;background:#f7f8fc;font-size:14px;color:#333;"><button class="btn-sm" onclick="addEvent()">作成</button>'+(state.selectedEvent?'<button class="btn-sm danger" onclick="delEvent()">削除</button>':'')+' </div>';
   }
 
   const msel='<div><div class="section-label">参加メンバー</div><div class="member-select-row">'+state.allMembers.map(m=>'<button class="member-check'+(members.includes(m)?' active':'')+'" onclick="togglePeriodMember(\''+m+'\')">'+m+'</button>').join('')+'</div></div>';
@@ -188,21 +202,22 @@ function render(){
   let expHTML=exps.length===0?'<div class="empty">まだ支出がありません</div>':exps.slice().reverse().map(e=>{const cat=CATS.find(c=>c.id===e.cat)||CATS[8];return '<div class="expense-card" onclick="openEdit(\''+e.id+'\')"><div class="expense-icon">'+cat.icon+'</div><div class="expense-main"><div class="expense-top"><span class="expense-store">'+(e.store||cat.label)+'</span><span class="expense-amount">¥'+Number(e.amount).toLocaleString()+'</span></div><div class="expense-sub"><span class="expense-tag">'+e.date.slice(5)+'</span><span class="expense-tag">'+e.payer+'が支払</span><span class="expense-tag">'+cat.label+'</span></div></div><span style="font-size:16px;color:#ccc;flex-shrink:0;">›</span></div>';}).join('');
 
   let seisanHTML='';
-  if(state.showSeisan){const res=calcSeisan(exps,members);seisanHTML='<div class="seisan-result"><h3>精算結果</h3>'+(res.length?res.map(r=>'<div class="seisan-item">'+r+'</div>').join(''):'<div class="seisan-item">精算不要です</div>')+'</div>';}
+  if (state.showSeisan) { const res=calcSeisan(exps,members); seisanHTML='<div class="seisan-result"><h3>精算結果</h3>'+(res.length?res.map(r=>'<div class="seisan-item">'+r+'</div>').join(''):'<div class="seisan-item">精算不要です</div>')+'</div>'; }
 
   let modal='';
-  if(state.showForm){const f=state.form,isEdit=!!state.editId,fm=members.length>0?members:state.allMembers;if(!f.payer||!fm.includes(f.payer))f.payer=fm[0]||'';if(Object.keys(f.splits).length===0)f.splits=initSplits(fm);modal='<div class="overlay" onclick="if(event.target===this){state.showForm=false;state.editId=null;render()}"><div class="modal"><button class="modal-close" onclick="state.showForm=false;state.editId=null;render()">✕</button><h2>'+(isEdit?'支出を編集':'支出を追加')+'</h2><div style="height:10px;"></div>'+buildForm(f,fm,isEdit,false)+'</div></div>';}
+  if (state.showForm) { const f=state.form,isEdit=!!state.editId,fm=members.length>0?members:state.allMembers; if(!f.payer||!fm.includes(f.payer))f.payer=fm[0]||''; if(Object.keys(f.splits).length===0)f.splits=initSplits(fm); modal='<div class="overlay" onclick="if(event.target===this){state.showForm=false;state.editId=null;render()}"><div class="modal"><button class="modal-close" onclick="state.showForm=false;state.editId=null;render()">✕</button><h2>'+(isEdit?'支出を編集':'支出を追加')+'</h2><div style="height:10px;"></div>'+buildForm(f,fm,isEdit,false)+'</div></div>'; }
 
   let ocrModal='';
-  if(state.showOCR){const f=state.form,fm=members.length>0?members:state.allMembers;if(!f.payer||!fm.includes(f.payer))f.payer=fm[0]||'';if(Object.keys(f.splits).length===0)f.splits=initSplits(fm);const imgSrc=state.ocrImage?'data:'+state.ocrMime+';base64,'+state.ocrImage:'';ocrModal='<div class="overlay" onclick="if(event.target===this){state.showOCR=false;render()}"><div class="modal"><button class="modal-close" onclick="state.showOCR=false;render()">✕</button><h2>領収書から読み取り</h2><p class="modal-sub">Claudeが自動入力します。確認して登録してください。</p>'+(imgSrc?'<img class="ocr-preview" src="'+imgSrc+'" alt="領収書">':'')+(state.ocrLoading?'<div class="ocr-loading"><span class="spinner"></span>読み取り中...</div>':'')+(!state.ocrLoading&&!state.ocrDone?'<button class="btn-ocr-run" onclick="runOCR()">📖 AIで読み取る</button>':'')+(state.ocrDone?'<span class="ocr-badge">✨ 読み取り完了 — 修正してから登録</span><hr class="divider">'+buildForm(f,fm,false,true):'')+'</div></div>';}
+  if (state.showOCR) { const f=state.form,fm=members.length>0?members:state.allMembers; if(!f.payer||!fm.includes(f.payer))f.payer=fm[0]||''; if(Object.keys(f.splits).length===0)f.splits=initSplits(fm); const imgSrc=state.ocrImage?'data:'+state.ocrMime+';base64,'+state.ocrImage:''; ocrModal='<div class="overlay" onclick="if(event.target===this){state.showOCR=false;render()}"><div class="modal"><button class="modal-close" onclick="state.showOCR=false;render()">✕</button><h2>領収書から読み取り</h2><p class="modal-sub">Claudeが自動入力します。確認して登録してください。</p>'+(imgSrc?'<img class="ocr-preview" src="'+imgSrc+'" alt="領収書">':'')+(state.ocrLoading?'<div class="ocr-loading"><span class="spinner"></span>読み取り中...</div>':'')+(!state.ocrLoading&&!state.ocrDone?'<button class="btn-ocr-run" onclick="runOCR()">📖 AIで読み取る</button>':'')+(state.ocrDone?'<span class="ocr-badge">✨ 読み取り完了 — 修正してから登録</span><hr class="divider">'+buildForm(f,fm,false,true):'')+'</div></div>'; }
 
   let settingsModal='';
-  if(state.showSettings){settingsModal='<div class="overlay" onclick="if(event.target===this){state.showSettings=false;render()}"><div class="modal"><button class="modal-close" onclick="state.showSettings=false;render()">✕</button><h2>メンバー設定</h2><p style="font-size:12px;color:#aaa;margin-bottom:10px;">全期間で使うメンバーを管理します</p><div style="margin-bottom:10px;">'+state.allMembers.map((m,i)=>'<span class="member-tag">'+m+'<button class="member-del" onclick="delMember('+i+')">✕</button></span>').join('')+'</div><div class="member-add-row"><input placeholder="名前を入力" value="'+state.newMember+'" oninput="state.newMember=this.value" onkeydown="if(event.key===\'Enter\')addMember()"><button class="btn-sm" onclick="addMember()">追加</button></div></div></div>';}
+  if (state.showSettings) { settingsModal='<div class="overlay" onclick="if(event.target===this){state.showSettings=false;render()}"><div class="modal"><button class="modal-close" onclick="state.showSettings=false;render()">✕</button><h2>メンバー設定</h2><p style="font-size:12px;color:#aaa;margin-bottom:10px;">全期間で使うメンバーを管理します</p><div style="margin-bottom:10px;">'+state.allMembers.map((m,i)=>'<span class="member-tag">'+m+'<button class="member-del" onclick="delMember('+i+')">✕</button></span>').join('')+'</div><div class="member-add-row"><input placeholder="名前を入力" value="'+state.newMember+'" oninput="state.newMember=this.value" onkeydown="if(event.key===\'Enter\')addMember()"><button class="btn-sm" onclick="addMember()">追加</button></div></div></div>'; }
 
   let camMenu='';
-  if(state.showCamMenu){camMenu='<div class="cam-overlay" onclick="state.showCamMenu=false;render()"></div><div class="cam-menu"><div class="cam-menu-item" onclick="state.showCamMenu=false;render();document.getElementById(\'fileCamera\').click()"><span style="font-size:20px;">📷</span>カメラで撮影</div><div class="cam-menu-item" onclick="state.showCamMenu=false;render();document.getElementById(\'fileUpload\').click()"><span style="font-size:20px;">🖼️</span>写真から選択</div></div>';}
+  if (state.showCamMenu) { camMenu='<div class="cam-overlay" onclick="state.showCamMenu=false;render()"></div><div class="cam-menu"><div class="cam-menu-item" onclick="state.showCamMenu=false;render();document.getElementById(\'fileCamera\').click()"><span style="font-size:20px;">📷</span>カメラで撮影</div><div class="cam-menu-item" onclick="state.showCamMenu=false;render();document.getElementById(\'fileUpload\').click()"><span style="font-size:20px;">🖼️</span>写真から選択</div></div>'; }
 
-  app.innerHTML='<div class="header"><span class="header-title">精算Tool</span><button class="header-btn" onclick="state.showSettings=true;render()">⚙️</button></div>'+
+  app.innerHTML=
+    '<div class="header"><span class="header-title">精算Tool</span><button class="header-btn" onclick="state.showSettings=true;render()">⚙️</button></div>'+
     '<div class="period-bar"><div class="period-tabs"><button class="period-tab'+(state.mode==='month'?' active':'')+'" onclick="state.mode=\'month\';state.showSeisan=false;loadAndRender()">月次</button><button class="period-tab'+(state.mode==='event'?' active':'')+'" onclick="state.mode=\'event\';state.showSeisan=false;loadAndRender()">イベント</button></div>'+periodHTML+msel+'</div>'+
     '<div class="expense-list">'+expHTML+'</div>'+
     '<button class="seisan-btn" onclick="state.showSeisan=!state.showSeisan;render()">'+(state.showSeisan?'精算を閉じる':'精算を見る →')+'</button>'+
@@ -211,117 +226,108 @@ function render(){
     camMenu+modal+ocrModal+settingsModal;
 }
 
-async function loadAndRender(){
+async function loadAndRender() {
   render();
-  await loadExpenses();
-  if(state.mode==='event') await loadEvents();
+  try { await loadExpenses(); if(state.mode==='event') await loadEvents(); } catch(e) { console.error(e); }
   render();
 }
 
-function setupFileInputs(){
+function setupFileInputs() {
   ['fileCamera','fileUpload'].forEach(id=>{
     document.getElementById(id).addEventListener('change',e=>{
-      const file=e.target.files[0];if(!file)return;
+      const file=e.target.files[0]; if(!file)return;
       const reader=new FileReader();
       reader.onload=ev=>{
-        state.ocrImage=ev.target.result.split(',')[1];state.ocrMime=file.type||'image/jpeg';
-        state.ocrDone=false;state.ocrLoading=false;state.showOCR=true;
-        const m=currentMembers();state.form={date:today(),amount:'',cat:'food',store:'',payer:m[0]||'',splitMode:'equal',splits:initSplits(m)};
-        e.target.value='';render();
+        state.ocrImage=ev.target.result.split(',')[1]; state.ocrMime=file.type||'image/jpeg';
+        state.ocrDone=false; state.ocrLoading=false; state.showOCR=true;
+        const m=currentMembers(); state.form={date:today(),amount:'',cat:'food',store:'',payer:m[0]||'',splitMode:'equal',splits:initSplits(m)};
+        e.target.value=''; render();
       };
       reader.readAsDataURL(file);
     });
   });
 }
 
-async function runOCR(){
-  if(!state.ocrImage)return;
-  state.ocrLoading=true;render();
-  try{
+// ③OCR修正：レスポンスを正しくフォームに反映
+async function runOCR() {
+  if(!state.ocrImage) return;
+  state.ocrLoading=true; render();
+  try {
     const res=await fetch('/api/ocr',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({image:state.ocrImage,mime:state.ocrMime})});
+    if(!res.ok) throw new Error('API error: '+res.status);
     const parsed=await res.json();
+    if(parsed.error) throw new Error(parsed.error);
     state.form.date=parsed.date||today();
-    state.form.amount=parsed.amount||'';
+    state.form.amount=String(parsed.amount||'');
     state.form.store=parsed.store||'';
-    if(CATS.find(c=>c.id===parsed.category))state.form.cat=parsed.category;
+    if(parsed.category&&CATS.find(c=>c.id===parsed.category)) state.form.cat=parsed.category;
     state.ocrDone=true;
-  }catch(e){alert('読み取りに失敗しました。もう一度お試しください。');console.error(e);}
-  state.ocrLoading=false;render();
+  } catch(e) {
+    alert('読み取りに失敗しました: '+e.message);
+    console.error(e);
+  }
+  state.ocrLoading=false; render();
 }
 
-async function addFromOCR(){await addExpense();state.showOCR=false;state.ocrImage=null;state.ocrDone=false;}
+async function addFromOCR() { await addExpense(); state.showOCR=false; state.ocrImage=null; state.ocrDone=false; }
 
-function openForm(){const m=currentMembers();state.showForm=true;state.editId=null;state.form={date:today(),amount:'',cat:'food',store:'',payer:m[0]||'',splitMode:'equal',splits:initSplits(m)};render();}
+function openForm() { const m=currentMembers(); state.showForm=true; state.editId=null; state.form={date:today(),amount:'',cat:'food',store:'',payer:m[0]||'',splitMode:'equal',splits:initSplits(m)}; render(); }
 
-function openEdit(id){
-  const e=state.expenses.find(x=>x.id===id);if(!e)return;
-  const sp=typeof e.splits==='string'?JSON.parse(e.splits):e.splits;
-  state.showForm=true;state.editId=id;
-  state.form={date:e.date,amount:e.amount,cat:e.cat,store:e.store||'',payer:e.payer,splitMode:'custom',splits:sp};
+function openEdit(id) {
+  const e=state.expenses.find(x=>x.id===id); if(!e) return;
+  state.showForm=true; state.editId=id;
+  state.form={date:e.date,amount:e.amount,cat:e.cat,store:e.store||'',payer:e.payer,splitMode:'custom',splits:getSplits(e)};
   render();
 }
 
-async function addExpense(){
-  const f=state.form;if(!f.amount||!f.payer)return;
-  const m=currentMembers();let splits={};
+async function addExpense() {
+  const f=state.form; if(!f.amount||!f.payer) return;
+  const m=currentMembers(); let splits={};
   if(f.splitMode==='equal'){const n=m.length,base=Math.floor(100/n),rem=100-base*n;m.forEach((x,i)=>splits[x]=base+(i===0?rem:0));}
   else splits={...f.splits};
   const exp={id:Date.now().toString(),key:currentKey(),date:f.date,amount:f.amount,cat:f.cat,store:f.store,payer:f.payer,splits};
-  state.expenses.push(exp);
-  state.showForm=false;state.showSeisan=false;render();
+  state.expenses.push(exp); state.showForm=false; state.showSeisan=false; render();
   await pushExpense(exp);
 }
 
-async function saveEdit(){
-  const f=state.form;if(!f.amount||!f.payer)return;
-  const m=currentMembers();let splits={};
+async function saveEdit() {
+  const f=state.form; if(!f.amount||!f.payer) return;
+  const id=state.editId;
+  const m=currentMembers(); let splits={};
   if(f.splitMode==='equal'){const n=m.length,base=Math.floor(100/n),rem=100-base*n;m.forEach((x,i)=>splits[x]=base+(i===0?rem:0));}
   else splits={...f.splits};
-  state.expenses=state.expenses.map(e=>e.id!==state.editId?e:{...e,date:f.date,amount:f.amount,cat:f.cat,store:f.store,payer:f.payer,splits});
-  state.showForm=false;state.editId=null;state.showSeisan=false;render();
-  await updateExpense(state.editId||f.id,{date:f.date,amount:f.amount,cat:f.cat,store:f.store,payer:f.payer,splits});
+  state.expenses=state.expenses.map(e=>e.id!==id?e:{...e,date:f.date,amount:f.amount,cat:f.cat,store:f.store,payer:f.payer,splits});
+  state.showForm=false; state.editId=null; state.showSeisan=false; render();
+  await updateExpense(id,{date:f.date,amount:f.amount,cat:f.cat,store:f.store,payer:f.payer,splits});
 }
 
-async function delExpenseFromForm(){
-  if(!confirm('この支出を削除しますか？'))return;
+async function delExpenseFromForm() {
+  if(!confirm('この支出を削除しますか？')) return;
   const id=state.editId;
   state.expenses=state.expenses.filter(e=>e.id!==id);
-  state.showForm=false;state.editId=null;render();
+  state.showForm=false; state.editId=null; render();
   await deleteExpense(id);
 }
 
-function adjustSplit(name,val){const m=currentMembers();const others=m.filter(x=>x!==name);const rem=100-val,base=Math.floor(rem/others.length),r=rem-base*others.length;state.form.splits[name]=val;others.forEach((x,i)=>state.form.splits[x]=base+(i===0?r:0));}
-
-function addMember(){const name=state.newMember.trim();if(!name||state.allMembers.includes(name))return;state.allMembers.push(name);state.newMember='';saveAllMembers();render();}
-function delMember(i){if(state.allMembers.length<=1)return;if(!confirm('「'+state.allMembers[i]+'」を削除しますか？'))return;state.allMembers.splice(i,1);saveAllMembers();render();}
-
-async function addEvent(){
-  const name=state.eventName.trim();if(!name)return;
-  const ev={id:Date.now().toString(),name};
-  state.events.push(ev);state.selectedEvent=ev.id;state.eventName='';render();
-  await pushEvent(ev);
+function adjustSplit(name, val) {
+  const m=currentMembers(); const others=m.filter(x=>x!==name);
+  const rem=100-val,base=Math.floor(rem/others.length),r=rem-base*others.length;
+  state.form.splits[name]=val;
+  others.forEach((x,i)=>state.form.splits[x]=base+(i===0?r:0));
 }
 
-async function delEvent(){
-  if(!state.selectedEvent)return;
-  const ev=state.events.find(e=>e.id===state.selectedEvent);
+function addMember() { const name=state.newMember.trim(); if(!name||state.allMembers.includes(name))return; state.allMembers.push(name); state.newMember=''; saveAllMembers(); render(); }
+function delMember(i) { if(state.allMembers.length<=1)return; if(!confirm('「'+state.allMembers[i]+'」を削除しますか？'))return; state.allMembers.splice(i,1); saveAllMembers(); render(); }
+
+async function addEvent() { const name=state.eventName.trim(); if(!name)return; const ev={id:Date.now().toString(),name}; state.events.push(ev); state.selectedEvent=ev.id; state.eventName=''; render(); await pushEvent(ev); }
+async function delEvent() {
+  if(!state.selectedEvent)return; const ev=state.events.find(e=>e.id===state.selectedEvent);
   if(!confirm('「'+(ev?ev.name:'')+'」を削除しますか？'))return;
-  const id=state.selectedEvent;
-  state.events=state.events.filter(e=>e.id!==id);
-  state.expenses=state.expenses.filter(e=>e.key!=='event:'+id);
-  state.selectedEvent=state.events[0]?.id||'';
-  render();
-  await deleteEventApi(id);
+  const id=state.selectedEvent; state.events=state.events.filter(e=>e.id!==id); state.expenses=state.expenses.filter(e=>e.key!=='event:'+id); state.selectedEvent=state.events[0]?.id||''; render(); await deleteEventApi(id);
 }
 
-// 初期化
 (async()=>{
-  try {
-    await loadExpenses();
-    await loadEvents();
-  } catch(e) {
-    console.error('初期化エラー:', e);
-  }
+  try { await loadExpenses(); await loadEvents(); } catch(e) { console.error('初期化エラー:',e); }
   render();
   setupFileInputs();
 })();
