@@ -30,7 +30,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .expense-list { padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
 .expense-card { background: #fff; border: 0.5px solid #eee; border-radius: 12px; padding: 12px 14px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
 .expense-card:hover { background: #f7f8fc; }
-.expense-icon { width: 36px; height: 36px; border-radius: 8px; background: #f7f8fc; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+.expense-icon { width: 36px; height: 36px; border-radius: 8px; background: #f7f8fc; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; overflow: hidden; }
+.expense-icon img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
 .expense-main { flex: 1; min-width: 0; }
 .expense-top { display: flex; justify-content: space-between; align-items: baseline; }
 .expense-store { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px; }
@@ -59,9 +60,13 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .form-input { width: 100%; padding: 10px 12px; border: 0.5px solid #eee; border-radius: 8px; font-size: 15px; background: #f7f8fc; color: #333; margin-bottom: 14px; }
 .form-input:focus { outline: none; border-color: #378add; }
 .cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
-.cat-btn { padding: 10px 4px; border: 0.5px solid #eee; border-radius: 8px; background: none; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 11px; color: #666; }
-.cat-btn.active { border-color: #378add; background: #e6f1fb; color: #185fa5; }
-.cat-icon { font-size: 20px; line-height: 1; display: block; }
+.cat-btn { padding: 0; border: 0.5px solid #eee; border-radius: 8px; background: #f7f8fc; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; overflow: hidden; height: 70px; position: relative; }
+.cat-btn.active { border: 2px solid #378add; box-shadow: 0 0 0 1px #378add; }
+.cat-bg-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+.cat-label { position: relative; z-index: 1; width: 100%; text-align: center; padding: 3px 0; font-size: 11px; border-radius: 0 0 7px 7px; }
+.cat-label-img { background: rgba(0,0,0,0.38); color: #fff; }
+.cat-label-icon { color: #666; background: none; }
+.cat-icon-wrap { position: relative; z-index: 1; font-size: 22px; margin-top: 8px; line-height: 1; }
 .payer-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
 .payer-btn { flex: 1; min-width: 60px; padding: 9px; border: 0.5px solid #eee; border-radius: 8px; background: none; font-size: 13px; cursor: pointer; color: #666; }
 .payer-btn.active { border-color: #378add; background: #e6f1fb; color: #185fa5; font-weight: 500; }
@@ -96,7 +101,19 @@ input[type=file] { display: none; }
 <input type="file" id="fileUpload" accept="image/*">
 
 <script>
-const CATS=[{id:"rent",label:"家賃",icon:"🏠"},{id:"daily",label:"日用品",icon:"🧴"},{id:"food",label:"食費",icon:"🍽️"},{id:"fun",label:"娯楽費",icon:"🎮"},{id:"util",label:"光熱費",icon:"💡"},{id:"trans",label:"交通費",icon:"🚃"},{id:"med",label:"医療費",icon:"💊"},{id:"comm",label:"通信費",icon:"📱"},{id:"other",label:"その他",icon:"📦"}];
+// img プロパティに画像パスを追加するとパネル全面に画像が表示されます
+// 例: {id:"daily", label:"日用品", icon:"🧴", img:"/daily.png"}
+const CATS = [
+  {id:"rent",  label:"家賃",   icon:"🏠", img:"/rent.png"},
+  {id:"daily", label:"日用品", icon:"🧴"},
+  {id:"food",  label:"食費",   icon:"🍽️"},
+  {id:"fun",   label:"娯楽費", icon:"🎮"},
+  {id:"util",  label:"光熱費", icon:"💡"},
+  {id:"trans", label:"交通費", icon:"🚃"},
+  {id:"med",   label:"医療費", icon:"💊"},
+  {id:"comm",  label:"通信費", icon:"📱"},
+  {id:"other", label:"その他", icon:"📦"}
+];
 
 let state = {
   allMembers: [],
@@ -112,13 +129,26 @@ let state = {
 
 function today() { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
 function savePM() { localStorage.setItem('periodMembers', JSON.stringify(state.periodMembers)); }
-
 function currentKey() { if(state.mode==='event') return 'event:'+state.selectedEvent; return state.year+'-'+String(state.month).padStart(2,'0'); }
 function currentMembers() { const k=currentKey(); if(state.periodMembers[k]&&state.periodMembers[k].length>0) return state.periodMembers[k]; return [...state.allMembers]; }
 function togglePeriodMember(name) { const k=currentKey(); let m=state.periodMembers[k]?[...state.periodMembers[k]]:[...state.allMembers]; if(m.includes(name)){if(m.length<=1)return;m=m.filter(x=>x!==name);}else m.push(name); state.periodMembers[k]=m; savePM(); render(); }
 function filteredExp() { return state.expenses.filter(e=>e.key===currentKey()); }
 function initSplits(members) { const m=members||currentMembers(); const n=m.length,base=Math.floor(100/n),rem=100-base*n; const s={}; m.forEach((name,i)=>s[name]=base+(i===0?rem:0)); return s; }
 function getSplits(e) { return typeof e.splits==='string'?JSON.parse(e.splits):e.splits; }
+
+function buildCatBtn(c, isActive) {
+  const active = isActive ? ' active' : '';
+  if (c.img) {
+    return '<button class="cat-btn'+active+'" onclick="state.form.cat=\''+c.id+'\';render()">'+
+      '<img class="cat-bg-img" src="'+c.img+'">'+
+      '<span class="cat-label cat-label-img">'+c.label+'</span>'+
+      '</button>';
+  }
+  return '<button class="cat-btn'+active+'" onclick="state.form.cat=\''+c.id+'\';render()">'+
+    '<span class="cat-icon-wrap">'+c.icon+'</span>'+
+    '<span class="cat-label cat-label-icon">'+c.label+'</span>'+
+    '</button>';
+}
 
 function calcSeisan(expenses, members) {
   const bal={}; members.forEach(m=>bal[m]=0);
@@ -129,7 +159,6 @@ function calcSeisan(expenses, members) {
   return res;
 }
 
-// API
 async function loadMembers() { const r=await fetch('/api/members'); const data=await r.json(); if(Array.isArray(data)) state.allMembers=data; }
 async function saveMembers() { await fetch('/api/members',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({names:state.allMembers})}); }
 async function loadExpenses() { const k=currentKey(); const r=await fetch('/api/expenses?key='+encodeURIComponent(k)); const data=await r.json(); if(Array.isArray(data)) state.expenses=state.expenses.filter(e=>e.key!==k).concat(data); }
@@ -163,7 +192,8 @@ function buildSplit(form, members) {
 function buildForm(f, members, isEdit, isOCR) {
   return '<label class="form-label">日付</label><input class="form-input" type="date" value="'+f.date+'" onchange="state.form.date=this.value">'+
     '<label class="form-label">金額</label><input class="form-input" type="number" placeholder="0" value="'+f.amount+'" oninput="state.form.amount=this.value" inputmode="numeric">'+
-    '<label class="form-label">カテゴリ</label><div class="cat-grid">'+CATS.map(c=>'<button class="cat-btn'+(f.cat===c.id?' active':'')+'" onclick="state.form.cat=\''+c.id+'\';render()"><span class="cat-icon">'+c.icon+'</span>'+c.label+'</button>').join('')+'</div>'+
+    '<label class="form-label">カテゴリ</label>'+
+    '<div class="cat-grid">'+CATS.map(c=>buildCatBtn(c, f.cat===c.id)).join('')+'</div>'+
     '<label class="form-label">支出先</label><input class="form-input" placeholder="スーパー、Netflix..." value="'+f.store+'" oninput="state.form.store=this.value">'+
     '<label class="form-label">支払った人</label><div class="payer-row">'+members.map(m=>'<button class="payer-btn'+(f.payer===m?' active':'')+'" onclick="state.form.payer=\''+m+'\';render()">'+m+'</button>').join('')+'</div>'+
     '<label class="form-label">按分</label><div class="split-toggle">'+
@@ -190,7 +220,16 @@ function render() {
 
   const msel='<div><div class="section-label">参加メンバー</div><div class="member-select-row">'+state.allMembers.map(m=>'<button class="member-check'+(members.includes(m)?' active':'')+'" onclick="togglePeriodMember(\''+m+'\')">'+m+'</button>').join('')+'</div></div>';
 
-  let expHTML=exps.length===0?'<div class="empty">まだ支出がありません</div>':exps.slice().reverse().map(e=>{const cat=CATS.find(c=>c.id===e.cat)||CATS[8];return '<div class="expense-card" onclick="openEdit(\''+e.id+'\')"><div class="expense-icon">'+cat.icon+'</div><div class="expense-main"><div class="expense-top"><span class="expense-store">'+(e.store||cat.label)+'</span><span class="expense-amount">¥'+Number(e.amount).toLocaleString()+'</span></div><div class="expense-sub"><span class="expense-tag">'+e.date.slice(5)+'</span><span class="expense-tag">'+e.payer+'が支払</span><span class="expense-tag">'+cat.label+'</span></div></div><span style="font-size:16px;color:#ccc;flex-shrink:0;">›</span></div>';}).join('');
+  let expHTML=exps.length===0?'<div class="empty">まだ支出がありません</div>':exps.slice().reverse().map(e=>{
+    const cat=CATS.find(c=>c.id===e.cat)||CATS[8];
+    const iconHTML=cat.img?'<img src="'+cat.img+'" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">':cat.icon;
+    return '<div class="expense-card" onclick="openEdit(\''+e.id+'\')">'+
+      '<div class="expense-icon">'+iconHTML+'</div>'+
+      '<div class="expense-main">'+
+      '<div class="expense-top"><span class="expense-store">'+(e.store||cat.label)+'</span><span class="expense-amount">¥'+Number(e.amount).toLocaleString()+'</span></div>'+
+      '<div class="expense-sub"><span class="expense-tag">'+e.date.slice(5)+'</span><span class="expense-tag">'+e.payer+'が支払</span><span class="expense-tag">'+cat.label+'</span></div>'+
+      '</div><span style="font-size:16px;color:#ccc;flex-shrink:0;">›</span></div>';
+  }).join('');
 
   let seisanHTML='';
   if (state.showSeisan) { const res=calcSeisan(exps,members); seisanHTML='<div class="seisan-result"><h3>精算結果</h3>'+(res.length?res.map(r=>'<div class="seisan-item">'+r+'</div>').join(''):'<div class="seisan-item">精算不要です</div>')+'</div>'; }
@@ -273,16 +312,13 @@ async function runOCR() {
 }
 
 async function addFromOCR() { await addExpense(); state.showOCR=false; state.ocrImage=null; state.ocrDone=false; }
-
 function openForm() { const m=currentMembers(); state.showForm=true; state.editId=null; state.form={date:today(),amount:'',cat:'food',store:'',payer:m[0]||'',splitMode:'equal',splits:initSplits(m)}; render(); }
-
 function openEdit(id) {
   const e=state.expenses.find(x=>x.id===id); if(!e) return;
   state.showForm=true; state.editId=id;
   state.form={date:e.date,amount:e.amount,cat:e.cat,store:e.store||'',payer:e.payer,splitMode:'custom',splits:getSplits(e)};
   render();
 }
-
 async function addExpense() {
   const f=state.form; if(!f.amount||!f.payer) return;
   const m=currentMembers(); let splits={};
@@ -292,7 +328,6 @@ async function addExpense() {
   state.expenses.push(exp); state.showForm=false; state.showSeisan=false; render();
   await pushExpense(exp);
 }
-
 async function saveEdit() {
   const f=state.form; if(!f.amount||!f.payer) return;
   const id=state.editId;
@@ -303,7 +338,6 @@ async function saveEdit() {
   state.showForm=false; state.editId=null; state.showSeisan=false; render();
   await updateExpense(id,{date:f.date,amount:f.amount,cat:f.cat,store:f.store,payer:f.payer,splits});
 }
-
 async function delExpenseFromForm() {
   if(!confirm('この支出を削除しますか？')) return;
   const id=state.editId;
@@ -311,27 +345,23 @@ async function delExpenseFromForm() {
   state.showForm=false; state.editId=null; render();
   await deleteExpense(id);
 }
-
 function adjustSplit(name, val) {
   const m=currentMembers(); const others=m.filter(x=>x!==name);
   const rem=100-val,base=Math.floor(rem/others.length),r=rem-base*others.length;
   state.form.splits[name]=val;
   others.forEach((x,i)=>state.form.splits[x]=base+(i===0?r:0));
 }
-
 async function addMember() {
   const name=state.newMember.trim(); if(!name||state.allMembers.includes(name))return;
   state.allMembers.push(name); state.newMember=''; render();
   await saveMembers();
 }
-
 async function delMember(i) {
   if(state.allMembers.length<=1)return;
   if(!confirm('「'+state.allMembers[i]+'」を削除しますか？'))return;
   state.allMembers.splice(i,1); render();
   await saveMembers();
 }
-
 async function addEvent() { const name=state.eventName.trim(); if(!name)return; const ev={id:Date.now().toString(),name}; state.events.push(ev); state.selectedEvent=ev.id; state.eventName=''; render(); await pushEvent(ev); }
 async function delEvent() {
   if(!state.selectedEvent)return; const ev=state.events.find(e=>e.id===state.selectedEvent);
@@ -340,9 +370,8 @@ async function delEvent() {
 }
 
 (async()=>{
-  try {
-    await Promise.all([loadMembers(), loadExpenses(), loadEvents()]);
-  } catch(e) { console.error('初期化エラー:',e); }
+  try { await Promise.all([loadMembers(), loadExpenses(), loadEvents()]); }
+  catch(e) { console.error('初期化エラー:',e); }
   render();
   setupFileInputs();
 })();
