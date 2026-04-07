@@ -98,17 +98,8 @@ input[type=file] { display: none; }
 <script>
 const CATS=[{id:"rent",label:"家賃",icon:"🏠"},{id:"daily",label:"日用品",icon:"🧴"},{id:"food",label:"食費",icon:"🍽️"},{id:"fun",label:"娯楽費",icon:"🎮"},{id:"util",label:"光熱費",icon:"💡"},{id:"trans",label:"交通費",icon:"🚃"},{id:"med",label:"医療費",icon:"💊"},{id:"comm",label:"通信費",icon:"📱"},{id:"other",label:"その他",icon:"📦"}];
 
-// localStorageの「自分」を削除（初回のみ）
-if (!localStorage.getItem('membersFixed')) {
-  const m = JSON.parse(localStorage.getItem('allMembers') || '[]');
-  const fixed = m.filter(x => x !== '自分' && x !== 'パートナー');
-  if (fixed.length > 0) localStorage.setItem('allMembers', JSON.stringify(fixed));
-  else localStorage.removeItem('allMembers');
-  localStorage.setItem('membersFixed', '1');
-}
-
 let state = {
-  allMembers: JSON.parse(localStorage.getItem('allMembers') || '[]'),
+  allMembers: [],
   periodMembers: JSON.parse(localStorage.getItem('periodMembers') || '{}'),
   mode: 'month', year: new Date().getFullYear(), month: new Date().getMonth()+1,
   eventName: '', events: [], selectedEvent: '',
@@ -120,7 +111,6 @@ let state = {
 };
 
 function today() { const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
-function saveAllMembers() { localStorage.setItem('allMembers', JSON.stringify(state.allMembers)); }
 function savePM() { localStorage.setItem('periodMembers', JSON.stringify(state.periodMembers)); }
 
 function currentKey() { if(state.mode==='event') return 'event:'+state.selectedEvent; return state.year+'-'+String(state.month).padStart(2,'0'); }
@@ -140,6 +130,8 @@ function calcSeisan(expenses, members) {
 }
 
 // API
+async function loadMembers() { const r=await fetch('/api/members'); const data=await r.json(); if(Array.isArray(data)) state.allMembers=data; }
+async function saveMembers() { await fetch('/api/members',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({names:state.allMembers})}); }
 async function loadExpenses() { const k=currentKey(); const r=await fetch('/api/expenses?key='+encodeURIComponent(k)); const data=await r.json(); if(Array.isArray(data)) state.expenses=state.expenses.filter(e=>e.key!==k).concat(data); }
 async function loadEvents() { const r=await fetch('/api/events'); const data=await r.json(); if(Array.isArray(data)) state.events=data; }
 async function pushExpense(exp) { const body={...exp,splits:JSON.stringify(exp.splits)}; await fetch('/api/expenses',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}); }
@@ -148,7 +140,6 @@ async function deleteExpense(id) { await fetch('/api/expenses?id='+id,{method:'D
 async function pushEvent(ev) { const r=await fetch('/api/events',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(ev)}); const data=await r.json(); return Array.isArray(data)?data[0]:data; }
 async function deleteEventApi(id) { await fetch('/api/events?id='+id,{method:'DELETE'}); }
 
-// ②カスタム按分：スライダー＋数字入力
 function buildSplit(form, members) {
   if (form.splitMode==='equal') {
     const pct=members.length>0?Math.round(100/members.length):0;
@@ -205,13 +196,26 @@ function render() {
   if (state.showSeisan) { const res=calcSeisan(exps,members); seisanHTML='<div class="seisan-result"><h3>精算結果</h3>'+(res.length?res.map(r=>'<div class="seisan-item">'+r+'</div>').join(''):'<div class="seisan-item">精算不要です</div>')+'</div>'; }
 
   let modal='';
-  if (state.showForm) { const f=state.form,isEdit=!!state.editId,fm=members.length>0?members:state.allMembers; if(!f.payer||!fm.includes(f.payer))f.payer=fm[0]||''; if(Object.keys(f.splits).length===0)f.splits=initSplits(fm); modal='<div class="overlay" onclick="if(event.target===this){state.showForm=false;state.editId=null;render()}"><div class="modal"><button class="modal-close" onclick="state.showForm=false;state.editId=null;render()">✕</button><h2>'+(isEdit?'支出を編集':'支出を追加')+'</h2><div style="height:10px;"></div>'+buildForm(f,fm,isEdit,false)+'</div></div>'; }
+  if (state.showForm) {
+    const f=state.form,isEdit=!!state.editId,fm=members.length>0?members:state.allMembers;
+    if(!f.payer||!fm.includes(f.payer))f.payer=fm[0]||'';
+    if(Object.keys(f.splits).length===0)f.splits=initSplits(fm);
+    modal='<div class="overlay" onclick="if(event.target===this){state.showForm=false;state.editId=null;render()}"><div class="modal"><button class="modal-close" onclick="state.showForm=false;state.editId=null;render()">✕</button><h2>'+(isEdit?'支出を編集':'支出を追加')+'</h2><div style="height:10px;"></div>'+buildForm(f,fm,isEdit,false)+'</div></div>';
+  }
 
   let ocrModal='';
-  if (state.showOCR) { const f=state.form,fm=members.length>0?members:state.allMembers; if(!f.payer||!fm.includes(f.payer))f.payer=fm[0]||''; if(Object.keys(f.splits).length===0)f.splits=initSplits(fm); const imgSrc=state.ocrImage?'data:'+state.ocrMime+';base64,'+state.ocrImage:''; ocrModal='<div class="overlay" onclick="if(event.target===this){state.showOCR=false;render()}"><div class="modal"><button class="modal-close" onclick="state.showOCR=false;render()">✕</button><h2>領収書から読み取り</h2><p class="modal-sub">Claudeが自動入力します。確認して登録してください。</p>'+(imgSrc?'<img class="ocr-preview" src="'+imgSrc+'" alt="領収書">':'')+(state.ocrLoading?'<div class="ocr-loading"><span class="spinner"></span>読み取り中...</div>':'')+(!state.ocrLoading&&!state.ocrDone?'<button class="btn-ocr-run" onclick="runOCR()">📖 AIで読み取る</button>':'')+(state.ocrDone?'<span class="ocr-badge">✨ 読み取り完了 — 修正してから登録</span><hr class="divider">'+buildForm(f,fm,false,true):'')+'</div></div>'; }
+  if (state.showOCR) {
+    const f=state.form,fm=members.length>0?members:state.allMembers;
+    if(!f.payer||!fm.includes(f.payer))f.payer=fm[0]||'';
+    if(Object.keys(f.splits).length===0)f.splits=initSplits(fm);
+    const imgSrc=state.ocrImage?'data:'+state.ocrMime+';base64,'+state.ocrImage:'';
+    ocrModal='<div class="overlay" onclick="if(event.target===this){state.showOCR=false;render()}"><div class="modal"><button class="modal-close" onclick="state.showOCR=false;render()">✕</button><h2>領収書から読み取り</h2><p class="modal-sub">Claudeが自動入力します。確認して登録してください。</p>'+(imgSrc?'<img class="ocr-preview" src="'+imgSrc+'" alt="領収書">':'')+(state.ocrLoading?'<div class="ocr-loading"><span class="spinner"></span>読み取り中...</div>':'')+(!state.ocrLoading&&!state.ocrDone?'<button class="btn-ocr-run" onclick="runOCR()">📖 AIで読み取る</button>':'')+(state.ocrDone?'<span class="ocr-badge">✨ 読み取り完了 — 修正してから登録</span><hr class="divider">'+buildForm(f,fm,false,true):'')+'</div></div>';
+  }
 
   let settingsModal='';
-  if (state.showSettings) { settingsModal='<div class="overlay" onclick="if(event.target===this){state.showSettings=false;render()}"><div class="modal"><button class="modal-close" onclick="state.showSettings=false;render()">✕</button><h2>メンバー設定</h2><p style="font-size:12px;color:#aaa;margin-bottom:10px;">全期間で使うメンバーを管理します</p><div style="margin-bottom:10px;">'+state.allMembers.map((m,i)=>'<span class="member-tag">'+m+'<button class="member-del" onclick="delMember('+i+')">✕</button></span>').join('')+'</div><div class="member-add-row"><input placeholder="名前を入力" value="'+state.newMember+'" oninput="state.newMember=this.value" onkeydown="if(event.key===\'Enter\')addMember()"><button class="btn-sm" onclick="addMember()">追加</button></div></div></div>'; }
+  if (state.showSettings) {
+    settingsModal='<div class="overlay" onclick="if(event.target===this){state.showSettings=false;render()}"><div class="modal"><button class="modal-close" onclick="state.showSettings=false;render()">✕</button><h2>メンバー設定</h2><p style="font-size:12px;color:#aaa;margin-bottom:10px;">全デバイスで共有されます</p><div style="margin-bottom:10px;">'+state.allMembers.map((m,i)=>'<span class="member-tag">'+m+'<button class="member-del" onclick="delMember('+i+')">✕</button></span>').join('')+'</div><div class="member-add-row"><input placeholder="名前を入力" value="'+state.newMember+'" oninput="state.newMember=this.value" onkeydown="if(event.key===\'Enter\')addMember()"><button class="btn-sm" onclick="addMember()">追加</button></div></div></div>';
+  }
 
   let camMenu='';
   if (state.showCamMenu) { camMenu='<div class="cam-overlay" onclick="state.showCamMenu=false;render()"></div><div class="cam-menu"><div class="cam-menu-item" onclick="state.showCamMenu=false;render();document.getElementById(\'fileCamera\').click()"><span style="font-size:20px;">📷</span>カメラで撮影</div><div class="cam-menu-item" onclick="state.showCamMenu=false;render();document.getElementById(\'fileUpload\').click()"><span style="font-size:20px;">🖼️</span>写真から選択</div></div>'; }
@@ -248,7 +252,6 @@ function setupFileInputs() {
   });
 }
 
-// ③OCR修正：レスポンスを正しくフォームに反映
 async function runOCR() {
   if(!state.ocrImage) return;
   state.ocrLoading=true; render();
@@ -316,8 +319,18 @@ function adjustSplit(name, val) {
   others.forEach((x,i)=>state.form.splits[x]=base+(i===0?r:0));
 }
 
-function addMember() { const name=state.newMember.trim(); if(!name||state.allMembers.includes(name))return; state.allMembers.push(name); state.newMember=''; saveAllMembers(); render(); }
-function delMember(i) { if(state.allMembers.length<=1)return; if(!confirm('「'+state.allMembers[i]+'」を削除しますか？'))return; state.allMembers.splice(i,1); saveAllMembers(); render(); }
+async function addMember() {
+  const name=state.newMember.trim(); if(!name||state.allMembers.includes(name))return;
+  state.allMembers.push(name); state.newMember=''; render();
+  await saveMembers();
+}
+
+async function delMember(i) {
+  if(state.allMembers.length<=1)return;
+  if(!confirm('「'+state.allMembers[i]+'」を削除しますか？'))return;
+  state.allMembers.splice(i,1); render();
+  await saveMembers();
+}
 
 async function addEvent() { const name=state.eventName.trim(); if(!name)return; const ev={id:Date.now().toString(),name}; state.events.push(ev); state.selectedEvent=ev.id; state.eventName=''; render(); await pushEvent(ev); }
 async function delEvent() {
@@ -327,7 +340,9 @@ async function delEvent() {
 }
 
 (async()=>{
-  try { await loadExpenses(); await loadEvents(); } catch(e) { console.error('初期化エラー:',e); }
+  try {
+    await Promise.all([loadMembers(), loadExpenses(), loadEvents()]);
+  } catch(e) { console.error('初期化エラー:',e); }
   render();
   setupFileInputs();
 })();
