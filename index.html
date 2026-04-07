@@ -60,11 +60,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .form-input { width: 100%; padding: 10px 12px; border: 0.5px solid #eee; border-radius: 8px; font-size: 15px; background: #f7f8fc; color: #333; margin-bottom: 14px; }
 .form-input:focus { outline: none; border-color: #378add; }
 .cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
-.cat-btn { padding: 0; border: 0.5px solid #eee; border-radius: 8px; background: #f7f8fc; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; overflow: hidden; height: 70px; position: relative; }
+.cat-btn { padding: 0; border: 0.5px solid #eee; border-radius: 8px; background: #f7f8fc; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: flex-start;  overflow: hidden; height: 70px; position: relative; }
 .cat-btn.active { border: 2px solid #378add; box-shadow: 0 0 0 1px #378add; }
 .cat-bg-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .cat-label { position: relative; z-index: 1; width: 100%; text-align: center; padding: 3px 0; font-size: 11px; border-radius: 0 0 7px 7px; }
-.cat-label-img { background: rgba(0,0,0,0.38); color: #fff; }
+.cat-label-img { background: rgba(0,0,0,0.38); color: #fff; border-radius: 7px 7px 0 0; }
 .cat-label-icon { color: #666; background: none; }
 .cat-icon-wrap { position: relative; z-index: 1; font-size: 22px; margin-top: 8px; line-height: 1; }
 .payer-row { display: flex; gap: 8px; margin-bottom: 14px; flex-wrap: wrap; }
@@ -105,8 +105,8 @@ input[type=file] { display: none; }
 // 例: {id:"daily", label:"日用品", icon:"🧴", img:"/daily.png"}
 const CATS = [
   {id:"rent",  label:"家賃",   icon:"🏠", img:"/rent.png"},
-  {id:"daily", label:"日用品", icon:"🧴"},
-  {id:"food",  label:"食費",   icon:"🍽️"},
+  {id:"daily", label:"日用品", icon:"🧴", img:"/daily.png"},
+  {id:"food", label:"食費", icon:"🍽️", img:"/food.png"},
   {id:"fun",   label:"娯楽費", icon:"🎮"},
   {id:"util",  label:"光熱費", icon:"💡"},
   {id:"trans", label:"交通費", icon:"🚃"},
@@ -140,9 +140,9 @@ function buildCatBtn(c, isActive) {
   const active = isActive ? ' active' : '';
   if (c.img) {
     return '<button class="cat-btn'+active+'" onclick="state.form.cat=\''+c.id+'\';render()">'+
-      '<img class="cat-bg-img" src="'+c.img+'">'+
-      '<span class="cat-label cat-label-img">'+c.label+'</span>'+
-      '</button>';
+     '<span class="cat-label cat-label-img">'+c.label+'</span>'+
+     '<img class="cat-bg-img" src="'+c.img+'">'+
+     '</button>';
   }
   return '<button class="cat-btn'+active+'" onclick="state.form.cat=\''+c.id+'\';render()">'+
     '<span class="cat-icon-wrap">'+c.icon+'</span>'+
