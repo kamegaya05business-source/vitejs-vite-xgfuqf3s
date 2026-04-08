@@ -40,9 +40,8 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .expense-tag { font-size: 11px; color: #888; background: #f7f8fc; padding: 1px 6px; border-radius: 10px; }
 .fab-area { position: fixed; bottom: 24px; right: 20px; display: flex; flex-direction: column; align-items: center; gap: 10px; z-index: 20; }
 .fab { width: 52px; height: 52px; border-radius: 50%; color: #fff; border: none; font-size: 26px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-.fab-main { background: #378add; }
-.fab-camera { background: #fff; border: 0.5px solid #ddd; color: #378add; font-size: 22px; width: 44px; height: 44px; }
-.cam-menu { position: fixed; bottom: 100px; right: 16px; background: #fff; border: 0.5px solid #eee; border-radius: 12px; overflow: hidden; z-index: 30; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+.fab-main { background: rgba(255,255,255,0.9); border: 0.5px solid #ddd; color: #378add; font-size: 26px; }
+.fab-camera { background: rgba(255,255,255,0.9); border: 0.5px solid #ddd; color: #378add; font-size: 24px; width: 44px; height: 44px; border-radius: 50%; display: flex; align-items: center; justify-content: center; line-height: 1; padding: 0 0 4px 0; }.cam-menu { position: fixed; bottom: 100px; right: 16px; background: #fff; border: 0.5px solid #eee; border-radius: 12px; overflow: hidden; z-index: 30; box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
 .cam-menu-item { padding: 13px 20px; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 10px; border-bottom: 0.5px solid #eee; }
 .cam-menu-item:last-child { border-bottom: none; }
 .cam-menu-item:hover { background: #f7f8fc; }
@@ -58,11 +57,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .modal-ocr { background: url('/modal-bg.png') no-repeat center center / cover; border-radius: 20px 20px 0 0; padding: 16px 12px 32px; width: 100%; max-width: 480px; max-height: 92vh; overflow-y: auto; }
 /* メンバー設定など：白背景 */
 .modal-plain { background: #fff; border-radius: 20px 20px 0 0; padding: 16px 12px 32px; width: 100%; max-width: 480px; max-height: 92vh; overflow-y: auto; }
+.modal-close { float: right; background: rgba(255,255,255,0.9); border: none; font-size: 18px; cursor: pointer; color: #555; width: 28px; height: 28px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 1px 4px rgba(0,0,0,0.15); }
 .modal-inner { background: transparent; border-radius: 12px; padding: 16px; }
 .modal-inner-white { background: #fff; border-radius: 12px; padding: 16px; }
 .modal h2, .modal-ocr h2, .modal-plain h2 { font-size: 16px; font-weight: 500; margin-bottom: 4px; }
 .modal-sub { font-size: 12px; color: #aaa; margin-bottom: 14px; }
-.modal-close { float: right; background: none; border: none; font-size: 20px; cursor: pointer; color: #888; }
 .form-label { font-size: 13px; color: #555; margin-bottom: 5px; display: block; font-weight: 500; }
 .form-input { width: 100%; padding: 10px 12px; border: 0.5px solid #ddd; border-radius: 8px; font-size: 15px; background: rgba(255,255,255,0.9); color: #333; margin-bottom: 14px; }
 .form-input:focus { outline: none; border-color: #378add; }
@@ -187,7 +186,7 @@ function buildSplit(form, members) {
       return '<div class="slider-row">'+
         '<span class="slider-name">'+m+'</span>'+
         '<input type="range" min="0" max="100" step="1" value="'+pct+'" style="flex:1;" oninput="adjustSplit(\''+m+'\',+this.value);renderKeepScroll()">'+
-        '<input class="slider-pct-input" type="number" min="0" max="100" value="'+pct+'" oninput="adjustSplit(\''+m+'\',+this.value);renderKeepScroll()">'+
+        '<input class="slider-pct-input" type="number" min="0" max="100" value="'+pct+'" onchange="adjustSplit(\''+m+'\',+this.value);renderKeepScroll()">'+
         '<span style="font-size:12px;color:#888;">%</span>'+
         '</div>';
     }).join('')+
