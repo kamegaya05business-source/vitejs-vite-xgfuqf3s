@@ -8,27 +8,27 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f7f8fc url('/bg-main.png') no-repeat center top / cover fixed; color: #333; min-height: 100vh; }
 .app { max-width: 480px; margin: 0 auto; padding: 0 0 100px; }
-.header { background: #fff; border-bottom: 0.5px solid #eee; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
+.header { background: rgba(255,255,255,0.92); border-bottom: 0.5px solid #eee; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
 .header-title { font-size: 17px; font-weight: 500; }
 .header-btn { background: none; border: none; font-size: 22px; cursor: pointer; padding: 4px; }
-.period-bar { background: #fff; padding: 12px 16px; border-bottom: 0.5px solid #eee; }
+.period-bar { background: rgba(255,255,255,0.92); padding: 12px 16px; border-bottom: 0.5px solid #eee; }
 .period-tabs { display: flex; gap: 8px; margin-bottom: 10px; }
 .period-tab { flex: 1; padding: 7px; border: 0.5px solid #ddd; border-radius: 8px; background: none; font-size: 13px; cursor: pointer; color: #666; }
 .period-tab.active { background: #e6f1fb; border-color: #378add; color: #185fa5; font-weight: 500; }
 .month-selector { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
-.month-selector select { flex: 1; padding: 8px 10px; border: 0.5px solid #eee; border-radius: 8px; background: #f7f8fc; font-size: 14px; color: #333; }
+.month-selector select { flex: 1; padding: 8px 10px; border: 0.5px solid #eee; border-radius: 8px; background: rgba(255,255,255,0.9); font-size: 14px; color: #333; }
 .event-row { display: flex; gap: 8px; align-items: center; margin-bottom: 10px; flex-wrap: wrap; }
-.event-row input { flex: 1; min-width: 80px; padding: 8px 10px; border: 0.5px solid #eee; border-radius: 8px; background: #f7f8fc; font-size: 14px; color: #333; }
-.event-row select { flex: 1; min-width: 80px; padding: 8px 10px; border: 0.5px solid #eee; border-radius: 8px; background: #f7f8fc; font-size: 14px; color: #333; }
-.btn-sm { padding: 7px 12px; border: 0.5px solid #ddd; border-radius: 8px; background: none; font-size: 13px; cursor: pointer; color: #333; white-space: nowrap; }
+.event-row input { flex: 1; min-width: 80px; padding: 8px 10px; border: 0.5px solid #eee; border-radius: 8px; background: rgba(255,255,255,0.9); font-size: 14px; color: #333; }
+.event-row select { flex: 1; min-width: 80px; padding: 8px 10px; border: 0.5px solid #eee; border-radius: 8px; background: rgba(255,255,255,0.9); font-size: 14px; color: #333; }
+.btn-sm { padding: 7px 12px; border: 0.5px solid #ddd; border-radius: 8px; background: rgba(255,255,255,0.9); font-size: 13px; cursor: pointer; color: #333; white-space: nowrap; }
 .btn-sm:hover { background: #f7f8fc; }
 .btn-sm.danger { color: #e24b4a; border-color: #f0c0c0; }
-.section-label { font-size: 12px; color: #aaa; margin: 10px 0 6px; }
+.section-label { font-size: 12px; color: #888; margin: 10px 0 6px; }
 .member-select-row { display: flex; flex-wrap: wrap; gap: 6px; }
-.member-check { padding: 5px 10px; border: 0.5px solid #ddd; border-radius: 20px; background: none; font-size: 12px; cursor: pointer; color: #666; }
+.member-check { padding: 5px 10px; border: 0.5px solid #ddd; border-radius: 20px; background: rgba(255,255,255,0.9); font-size: 12px; cursor: pointer; color: #666; }
 .member-check.active { background: #e6f1fb; border-color: #378add; color: #185fa5; font-weight: 500; }
 .expense-list { padding: 12px 16px; display: flex; flex-direction: column; gap: 8px; }
-.expense-card { background: #fff; border: 0.5px solid #eee; border-radius: 12px; padding: 12px 14px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
+.expense-card { background: rgba(255,255,255,0.92); border: 0.5px solid #eee; border-radius: 12px; padding: 12px 14px; display: flex; align-items: center; gap: 10px; cursor: pointer; }
 .expense-card:hover { background: #f7f8fc; }
 .expense-icon { width: 36px; height: 36px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; overflow: hidden; }
 .expense-icon img { width: 100%; height: 100%; object-fit: cover; border-radius: 8px; }
@@ -47,15 +47,20 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .cam-menu-item:last-child { border-bottom: none; }
 .cam-menu-item:hover { background: #f7f8fc; }
 .cam-overlay { position: fixed; inset: 0; z-index: 25; }
-.seisan-btn { display: block; margin: 0 16px; background: #fff; border: 0.5px solid #ddd; border-radius: 12px; padding: 12px 16px; width: calc(100% - 32px); font-size: 14px; cursor: pointer; color: #333; text-align: center; }
-.seisan-result { margin: 12px 16px; background: #e6f1fb; border: 0.5px solid #b5d4f4; border-radius: 12px; padding: 14px 16px; }
+.seisan-btn { display: block; margin: 0 16px; background: rgba(255,255,255,0.92); border: 0.5px solid #ddd; border-radius: 12px; padding: 12px 16px; width: calc(100% - 32px); font-size: 14px; cursor: pointer; color: #333; text-align: center; }
+.seisan-result { margin: 12px 16px; background: rgba(230,241,251,0.95); border: 0.5px solid #b5d4f4; border-radius: 12px; padding: 14px 16px; }
 .seisan-result h3 { font-size: 14px; font-weight: 500; color: #185fa5; margin-bottom: 10px; }
 .seisan-item { font-size: 14px; color: #185fa5; margin-bottom: 4px; }
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: flex-end; justify-content: center; z-index: 100; }
+/* 支出追加・編集：ピクミン壁紙背景 */
 .modal { background: url('/modal-bg.png') no-repeat center center / cover; border-radius: 20px 20px 0 0; padding: 16px 12px 32px; width: 100%; max-width: 480px; max-height: 92vh; overflow-y: auto; }
+/* OCR：ピクミン壁紙背景 */
+.modal-ocr { background: url('/modal-bg.png') no-repeat center center / cover; border-radius: 20px 20px 0 0; padding: 16px 12px 32px; width: 100%; max-width: 480px; max-height: 92vh; overflow-y: auto; }
+/* メンバー設定など：白背景 */
 .modal-plain { background: #fff; border-radius: 20px 20px 0 0; padding: 16px 12px 32px; width: 100%; max-width: 480px; max-height: 92vh; overflow-y: auto; }
 .modal-inner { background: transparent; border-radius: 12px; padding: 16px; }
-.modal h2 { font-size: 16px; font-weight: 500; margin-bottom: 4px; }
+.modal-inner-white { background: #fff; border-radius: 12px; padding: 16px; }
+.modal h2, .modal-ocr h2, .modal-plain h2 { font-size: 16px; font-weight: 500; margin-bottom: 4px; }
 .modal-sub { font-size: 12px; color: #aaa; margin-bottom: 14px; }
 .modal-close { float: right; background: none; border: none; font-size: 20px; cursor: pointer; color: #888; }
 .form-label { font-size: 13px; color: #555; margin-bottom: 5px; display: block; font-weight: 500; }
@@ -68,8 +73,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .cat-label-img { background: rgba(0,0,0,0.38); color: #fff; border-radius: 0 0 6px 6px; }
 .cat-label-icon { color: #555; background: rgba(255,255,255,0.7); }
 .cat-icon-wrap { position: relative; z-index: 1; font-size: 22px; margin-top: 8px; line-height: 1; }
-/* 支払った人・按分セクション */
-.form-section { background: rgba(255,255,255,0.85); border-radius: 10px; padding: 12px; margin-bottom: 14px; border: 0.5px solid rgba(0,0,0,0.08); }
+.form-section { background: rgba(255,255,255,0.88); border-radius: 10px; padding: 12px; margin-bottom: 14px; border: 0.5px solid rgba(0,0,0,0.08); }
 .payer-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .payer-btn { flex: 1; min-width: 60px; padding: 9px; border: 0.5px solid #ddd; border-radius: 8px; background: #fff; font-size: 13px; cursor: pointer; color: #666; }
 .payer-btn.active { border-color: #378add; background: #e6f1fb; color: #185fa5; font-weight: 500; }
@@ -81,8 +85,9 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .slider-pct-input { width: 54px; padding: 5px 6px; border: 0.5px solid #ddd; border-radius: 6px; font-size: 13px; font-weight: 500; text-align: center; background: #fff; color: #333; }
 .slider-pct-input:focus { outline: none; border-color: #378add; }
 .btn-submit { width: 100%; padding: 13px; background: #378add; color: #fff; border: none; border-radius: 12px; font-size: 15px; font-weight: 500; cursor: pointer; margin-top: 4px; }
+.btn-submit:disabled { background: #aac8e8; cursor: not-allowed; }
 .btn-delete { width: 100%; padding: 11px; background: rgba(255,255,255,0.9); color: #e24b4a; border: 0.5px solid #f0c0c0; border-radius: 12px; font-size: 14px; cursor: pointer; margin-top: 8px; }
-.ocr-preview { width: 100%; border-radius: 10px; max-height: 200px; object-fit: contain; background: #f7f8fc; margin-bottom: 12px; border: 0.5px solid #eee; }
+.ocr-preview { width: 100%; border-radius: 10px; max-height: 200px; object-fit: contain; background: rgba(255,255,255,0.8); margin-bottom: 12px; border: 0.5px solid #eee; }
 .ocr-loading { text-align: center; padding: 20px; color: #888; font-size: 14px; }
 .spinner { display: inline-block; width: 18px; height: 18px; border: 2px solid #ddd; border-top-color: #378add; border-radius: 50%; animation: spin 0.8s linear infinite; margin-right: 6px; vertical-align: middle; }
 @keyframes spin { to { transform: rotate(360deg); } }
@@ -93,7 +98,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .member-del { background: none; border: none; color: #aaa; cursor: pointer; font-size: 14px; padding: 0 0 0 2px; }
 .member-add-row { display: flex; gap: 8px; margin-top: 10px; }
 .member-add-row input { flex: 1; padding: 9px 12px; border: 0.5px solid #eee; border-radius: 8px; font-size: 14px; background: #fff; color: #333; }
-.empty { text-align: center; padding: 40px 20px; color: #aaa; font-size: 14px; }
+.empty { text-align: center; padding: 40px 20px; color: #888; font-size: 14px; background: rgba(255,255,255,0.7); border-radius: 12px; margin: 8px 0; }
 .loading-full { text-align: center; padding: 60px 20px; color: #aaa; font-size: 14px; }
 input[type=file] { display: none; }
 </style>
@@ -111,7 +116,7 @@ const CATS = [
   {id:"fun",   label:"娯楽費", icon:"🎮", img:"/fun.png",    color:"#666666"},
   {id:"util",  label:"光熱費", icon:"💡", img:"/util.png",   color:"#d4a800"},
   {id:"trans", label:"交通費", icon:"🚃", img:"/trans.png",  color:"#5bb8e8"},
-  {id:"med",   label:"医療費", icon:"💊",                    color:"#e8e8e8"},
+  {id:"med",   label:"医療費", icon:"💊",                    color:"#aaaaaa"},
   {id:"comm",  label:"通信費", icon:"📱",                    color:"#c9a0e8"},
   {id:"other", label:"その他", icon:"📦",                    color:"#aaaaaa"}
 ];
@@ -124,6 +129,7 @@ let state = {
   expenses: [],
   showForm: false, showSettings: false, showSeisan: false, showCamMenu: false, showOCR: false,
   editId: null, ocrImage: null, ocrMime: 'image/jpeg', ocrLoading: false, ocrDone: false,
+  submitting: false,
   form: { date: today(), amount: '', cat: 'food', store: '', payer: '', splitMode: 'equal', splits: {} },
   newMember: ''
 };
@@ -137,8 +143,8 @@ function filteredExp() { return state.expenses.filter(e=>e.key===currentKey()); 
 function initSplits(members) { const m=members||currentMembers(); const n=m.length,base=Math.floor(100/n),rem=100-base*n; const s={}; m.forEach((name,i)=>s[name]=base+(i===0?rem:0)); return s; }
 function getSplits(e) { return typeof e.splits==='string'?JSON.parse(e.splits):e.splits; }
 
-function saveScroll() { const m=document.querySelector('.modal'); return m?m.scrollTop:0; }
-function restoreScroll(pos) { const m=document.querySelector('.modal'); if(m) m.scrollTop=pos; }
+function saveScroll(sel) { const m=document.querySelector(sel||'.modal,.modal-ocr'); return m?m.scrollTop:0; }
+function restoreScroll(pos, sel) { const m=document.querySelector(sel||'.modal,.modal-ocr'); if(m) m.scrollTop=pos; }
 function renderKeepScroll() { const pos=saveScroll(); render(); restoreScroll(pos); }
 
 function buildCatBtn(c, isActive) {
@@ -197,6 +203,8 @@ function buildSplit(form, members) {
 }
 
 function buildForm(f, members, isEdit, isOCR) {
+  const submitLabel = isOCR?'登録する':isEdit?'保存する':'追加する';
+  const submitFn = isOCR?'addFromOCR()':isEdit?'saveEdit()':'addExpense()';
   return '<label class="form-label">日付</label><input class="form-input" type="date" value="'+f.date+'" onchange="state.form.date=this.value">'+
     '<label class="form-label">金額</label><input class="form-input" type="number" placeholder="0" value="'+f.amount+'" oninput="state.form.amount=this.value" inputmode="numeric">'+
     '<label class="form-label">カテゴリ</label>'+
@@ -213,7 +221,7 @@ function buildForm(f, members, isEdit, isOCR) {
     '<button class="split-btn'+(f.splitMode==='custom'?' active':'')+'" onclick="state.form.splitMode=\'custom\';renderKeepScroll()">カスタム</button>'+
     '</div>'+buildSplit(f,members)+
     '</div>'+
-    '<button class="btn-submit" onclick="'+(isOCR?'addFromOCR()':isEdit?'saveEdit()':'addExpense()')+'">'+(isOCR?'登録する':isEdit?'保存する':'追加する')+'</button>'+
+    '<button class="btn-submit" '+(state.submitting?'disabled':'')+' onclick="'+submitFn+'">'+(state.submitting?'処理中...':submitLabel)+'</button>'+
     (isEdit?'<button class="btn-delete" onclick="delExpenseFromForm()">この支出を削除</button>':'');
 }
 
@@ -228,16 +236,14 @@ function render() {
     periodHTML='<div class="month-selector"><select onchange="state.year=+this.value;state.showSeisan=false;loadAndRender()">'+years.map(y=>'<option value="'+y+'"'+(y===state.year?' selected':'')+'>'+y+'年</option>').join('')+'</select><select onchange="state.month=+this.value;state.showSeisan=false;loadAndRender()">'+months.map(m=>'<option value="'+m+'"'+(m===state.month?' selected':'')+'>'+m+'月</option>').join('')+'</select></div>';
   } else {
     const opts=state.events.map(ev=>'<option value="'+ev.id+'"'+(ev.id===state.selectedEvent?' selected':'')+'>'+ev.name+'</option>').join('');
-    periodHTML='<div class="event-row"><select onchange="state.selectedEvent=this.value;state.showSeisan=false;loadAndRender()">'+(opts||'<option value="">イベントなし</option>')+'</select><input placeholder="イベント名" value="'+state.eventName+'" oninput="state.eventName=this.value" style="flex:1;min-width:80px;padding:8px 10px;border:0.5px solid #eee;border-radius:8px;background:#f7f8fc;font-size:14px;color:#333;"><button class="btn-sm" onclick="addEvent()">作成</button>'+(state.selectedEvent?'<button class="btn-sm danger" onclick="delEvent()">削除</button>':'')+' </div>';
+    periodHTML='<div class="event-row"><select onchange="state.selectedEvent=this.value;state.showSeisan=false;loadAndRender()">'+(opts||'<option value="">イベントなし</option>')+'</select><input placeholder="イベント名" value="'+state.eventName+'" oninput="state.eventName=this.value" style="flex:1;min-width:80px;padding:8px 10px;border:0.5px solid #eee;border-radius:8px;background:rgba(255,255,255,0.9);font-size:14px;color:#333;"><button class="btn-sm" onclick="addEvent()">作成</button>'+(state.selectedEvent?'<button class="btn-sm danger" onclick="delEvent()">削除</button>':'')+' </div>';
   }
 
   const msel='<div><div class="section-label">参加メンバー</div><div class="member-select-row">'+state.allMembers.map(m=>'<button class="member-check'+(members.includes(m)?' active':'')+'" onclick="togglePeriodMember(\''+m+'\')">'+m+'</button>').join('')+'</div></div>';
 
   let expHTML=exps.length===0?'<div class="empty">まだ支出がありません</div>':exps.slice().reverse().map(e=>{
     const cat=CATS.find(c=>c.id===e.cat)||CATS[8];
-    const iconHTML=cat.img
-      ?'<img src="'+cat.img+'" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">'
-      :cat.icon;
+    const iconHTML=cat.img?'<img src="'+cat.img+'" style="width:100%;height:100%;object-fit:cover;border-radius:8px;">':cat.icon;
     return '<div class="expense-card" onclick="openEdit(\''+e.id+'\')">'+
       '<div class="expense-icon" style="background:'+cat.color+'33;border:1.5px solid '+cat.color+'66;">'+iconHTML+'</div>'+
       '<div class="expense-main">'+
@@ -270,7 +276,7 @@ function render() {
     if(Object.keys(f.splits).length===0)f.splits=initSplits(fm);
     const imgSrc=state.ocrImage?'data:'+state.ocrMime+';base64,'+state.ocrImage:'';
     ocrModal='<div class="overlay" onclick="if(event.target===this){state.showOCR=false;render()}">'+
-      '<div class="modal-plain"><div class="modal-inner">'+
+      '<div class="modal-ocr"><div class="modal-inner">'+
       '<button class="modal-close" onclick="state.showOCR=false;render()">✕</button>'+
       '<h2>領収書から読み取り</h2>'+
       '<p class="modal-sub">Claudeが自動入力します。確認して登録してください。</p>'+
@@ -284,10 +290,11 @@ function render() {
   let settingsModal='';
   if (state.showSettings) {
     settingsModal='<div class="overlay" onclick="if(event.target===this){state.showSettings=false;render()}">'+
-      '<div class="modal-plain"><div class="modal-inner">'+
-      '<button class="modal-close" onclick="state.showSettings=false;render()">✕</button>'+
+      '<div class="modal-plain">'+
+      '<button class="modal-close" onclick="state.showSettings=false;render()" style="margin:4px 4px 0 0;">✕</button>'+
+      '<div style="padding:16px;">'+
       '<h2>メンバー設定</h2>'+
-      '<p style="font-size:12px;color:#aaa;margin-bottom:10px;">全デバイスで共有されます</p>'+
+      '<p style="font-size:12px;color:#aaa;margin:6px 0 12px;">全デバイスで共有されます</p>'+
       '<div style="margin-bottom:10px;">'+state.allMembers.map((m,i)=>'<span class="member-tag">'+m+'<button class="member-del" onclick="delMember('+i+')">✕</button></span>').join('')+'</div>'+
       '<div class="member-add-row"><input placeholder="名前を入力" value="'+state.newMember+'" oninput="state.newMember=this.value" onkeydown="if(event.key===\'Enter\')addMember()"><button class="btn-sm" onclick="addMember()">追加</button></div>'+
       '</div></div></div>';
@@ -348,33 +355,49 @@ async function runOCR() {
   state.ocrLoading=false; render();
 }
 
-async function addFromOCR() { await addExpense(); state.showOCR=false; state.ocrImage=null; state.ocrDone=false; }
-function openForm() { const m=currentMembers(); state.showForm=true; state.editId=null; state.form={date:today(),amount:'',cat:'food',store:'',payer:m[0]||'',splitMode:'equal',splits:initSplits(m)}; render(); }
+async function addFromOCR() {
+  if(state.submitting) return;
+  await addExpense();
+  state.showOCR=false; state.ocrImage=null; state.ocrDone=false;
+}
+
+function openForm() { const m=currentMembers(); state.showForm=true; state.editId=null; state.submitting=false; state.form={date:today(),amount:'',cat:'food',store:'',payer:m[0]||'',splitMode:'equal',splits:initSplits(m)}; render(); }
+
 function openEdit(id) {
   const e=state.expenses.find(x=>x.id===id); if(!e) return;
-  state.showForm=true; state.editId=id;
+  state.showForm=true; state.editId=id; state.submitting=false;
   state.form={date:e.date,amount:e.amount,cat:e.cat,store:e.store||'',payer:e.payer,splitMode:'custom',splits:getSplits(e)};
   render();
 }
+
 async function addExpense() {
+  if(state.submitting) return;
   const f=state.form; if(!f.amount||!f.payer) return;
+  state.submitting=true; render();
   const m=currentMembers(); let splits={};
   if(f.splitMode==='equal'){const n=m.length,base=Math.floor(100/n),rem=100-base*n;m.forEach((x,i)=>splits[x]=base+(i===0?rem:0));}
   else splits={...f.splits};
   const exp={id:Date.now().toString(),key:currentKey(),date:f.date,amount:f.amount,cat:f.cat,store:f.store,payer:f.payer,splits};
-  state.expenses.push(exp); state.showForm=false; state.showSeisan=false; render();
+  state.expenses.push(exp);
+  state.showForm=false; state.showOCR=false; state.showSeisan=false; state.submitting=false;
+  render();
   await pushExpense(exp);
 }
+
 async function saveEdit() {
+  if(state.submitting) return;
   const f=state.form; if(!f.amount||!f.payer) return;
+  state.submitting=true; render();
   const id=state.editId;
   const m=currentMembers(); let splits={};
   if(f.splitMode==='equal'){const n=m.length,base=Math.floor(100/n),rem=100-base*n;m.forEach((x,i)=>splits[x]=base+(i===0?rem:0));}
   else splits={...f.splits};
   state.expenses=state.expenses.map(e=>e.id!==id?e:{...e,date:f.date,amount:f.amount,cat:f.cat,store:f.store,payer:f.payer,splits});
-  state.showForm=false; state.editId=null; state.showSeisan=false; render();
+  state.showForm=false; state.editId=null; state.showSeisan=false; state.submitting=false;
+  render();
   await updateExpense(id,{date:f.date,amount:f.amount,cat:f.cat,store:f.store,payer:f.payer,splits});
 }
+
 async function delExpenseFromForm() {
   if(!confirm('この支出を削除しますか？')) return;
   const id=state.editId;
@@ -382,23 +405,27 @@ async function delExpenseFromForm() {
   state.showForm=false; state.editId=null; render();
   await deleteExpense(id);
 }
+
 function adjustSplit(name, val) {
   const m=currentMembers(); const others=m.filter(x=>x!==name);
   const rem=100-val,base=Math.floor(rem/others.length),r=rem-base*others.length;
   state.form.splits[name]=val;
   others.forEach((x,i)=>state.form.splits[x]=base+(i===0?r:0));
 }
+
 async function addMember() {
   const name=state.newMember.trim(); if(!name||state.allMembers.includes(name))return;
   state.allMembers.push(name); state.newMember=''; render();
   await saveMembers();
 }
+
 async function delMember(i) {
   if(state.allMembers.length<=1)return;
   if(!confirm('「'+state.allMembers[i]+'」を削除しますか？'))return;
   state.allMembers.splice(i,1); render();
   await saveMembers();
 }
+
 async function addEvent() { const name=state.eventName.trim(); if(!name)return; const ev={id:Date.now().toString(),name}; state.events.push(ev); state.selectedEvent=ev.id; state.eventName=''; render(); await pushEvent(ev); }
 async function delEvent() {
   if(!state.selectedEvent)return; const ev=state.events.find(e=>e.id===state.selectedEvent);
