@@ -67,13 +67,12 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .form-input { width: 100%; padding: 10px 12px; border: 0.5px solid #ddd; border-radius: 8px; font-size: 15px; background: rgba(255,255,255,0.9); color: #333; margin-bottom: 14px; }
 .form-input:focus { outline: none; border-color: #378add; }
 .cat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 14px; }
-.cat-btn { padding: 0; border-radius: 8px; background: #f7f8fc; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; overflow: hidden; height: 70px; position: relative; }
+.cat-btn { padding: 6px 4px 4px; border-radius: 8px; background: #f7f8fc; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: flex-start; overflow: hidden; height: 70px; position: relative; }
 .cat-bg-img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .cat-label { position: relative; z-index: 1; width: 100%; text-align: center; padding: 3px 0; font-size: 11px; }
 .cat-label-img { background: rgba(0,0,0,0.38); color: #fff; border-radius: 0 0 6px 6px; }
 .cat-label-icon { color: #555; background: rgba(255,255,255,0.7); }
-.cat-icon-wrap { position: relative; z-index: 1; font-size: 22px; margin-top: 8px; line-height: 1; }
-.form-section { background: rgba(255,255,255,0.88); border-radius: 10px; padding: 12px; margin-bottom: 14px; border: 0.5px solid rgba(0,0,0,0.08); }
+.cat-icon-wrap { position: relative; z-index: 1; font-size: 22px; margin-top: 6px; margin-bottom: 2px; line-height: 1; }
 .payer-row { display: flex; gap: 8px; flex-wrap: wrap; }
 .payer-btn { flex: 1; min-width: 60px; padding: 9px; border: 0.5px solid #ddd; border-radius: 8px; background: #fff; font-size: 13px; cursor: pointer; color: #666; }
 .payer-btn.active { border-color: #378add; background: #e6f1fb; color: #185fa5; font-weight: 500; }
@@ -151,13 +150,7 @@ function buildCatBtn(c, isActive) {
   const border = isActive
     ? 'border:3px solid '+c.color+';box-shadow:0 0 0 1px '+c.color+';'
     : 'border:2px solid '+c.color+';';
-  if (c.img) {
-    return '<button class="cat-btn" style="'+border+'" onclick="state.form.cat=\''+c.id+'\';renderKeepScroll()">'+
-      '<img class="cat-bg-img" src="'+c.img+'">'+
-      '<span class="cat-label cat-label-img">'+c.label+'</span>'+
-      '</button>';
-  }
-  return '<button class="cat-btn" style="'+border+'background:'+c.color+'22;" onclick="state.form.cat=\''+c.id+'\';renderKeepScroll()">'+
+  return '<button class="cat-btn" style="'+border+'background:rgba(255,255,255,0.85);" onclick="state.form.cat=\''+c.id+'\';renderKeepScroll()">'+
     '<span class="cat-icon-wrap">'+c.icon+'</span>'+
     '<span class="cat-label cat-label-icon">'+c.label+'</span>'+
     '</button>';
