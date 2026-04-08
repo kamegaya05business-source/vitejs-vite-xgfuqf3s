@@ -6,7 +6,7 @@
 <title>精算Tool</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f7f8fc; color: #333; min-height: 100vh; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: #f7f8fc url('/bg-main.png') no-repeat center top / cover fixed; color: #333; min-height: 100vh; }
 .app { max-width: 480px; margin: 0 auto; padding: 0 0 100px; }
 .header { background: #fff; border-bottom: 0.5px solid #eee; padding: 14px 16px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 10; }
 .header-title { font-size: 17px; font-weight: 500; }
@@ -53,6 +53,7 @@ body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; b
 .seisan-item { font-size: 14px; color: #185fa5; margin-bottom: 4px; }
 .overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.45); display: flex; align-items: flex-end; justify-content: center; z-index: 100; }
 .modal { background: url('/modal-bg.png') no-repeat center center / cover; border-radius: 20px 20px 0 0; padding: 16px 12px 32px; width: 100%; max-width: 480px; max-height: 92vh; overflow-y: auto; }
+.modal-plain { background: #fff; border-radius: 20px 20px 0 0; padding: 16px 12px 32px; width: 100%; max-width: 480px; max-height: 92vh; overflow-y: auto; }
 .modal-inner { background: transparent; border-radius: 12px; padding: 16px; }
 .modal h2 { font-size: 16px; font-weight: 500; margin-bottom: 4px; }
 .modal-sub { font-size: 12px; color: #aaa; margin-bottom: 14px; }
@@ -269,7 +270,7 @@ function render() {
     if(Object.keys(f.splits).length===0)f.splits=initSplits(fm);
     const imgSrc=state.ocrImage?'data:'+state.ocrMime+';base64,'+state.ocrImage:'';
     ocrModal='<div class="overlay" onclick="if(event.target===this){state.showOCR=false;render()}">'+
-      '<div class="modal"><div class="modal-inner">'+
+      '<div class="modal-plain"><div class="modal-inner">'+
       '<button class="modal-close" onclick="state.showOCR=false;render()">✕</button>'+
       '<h2>領収書から読み取り</h2>'+
       '<p class="modal-sub">Claudeが自動入力します。確認して登録してください。</p>'+
@@ -283,7 +284,7 @@ function render() {
   let settingsModal='';
   if (state.showSettings) {
     settingsModal='<div class="overlay" onclick="if(event.target===this){state.showSettings=false;render()}">'+
-      '<div class="modal"><div class="modal-inner">'+
+      '<div class="modal-plain"><div class="modal-inner">'+
       '<button class="modal-close" onclick="state.showSettings=false;render()">✕</button>'+
       '<h2>メンバー設定</h2>'+
       '<p style="font-size:12px;color:#aaa;margin-bottom:10px;">全デバイスで共有されます</p>'+
